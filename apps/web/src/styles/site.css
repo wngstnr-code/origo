@@ -793,3 +793,170 @@
 .when-near {
   min-height: 360px;
 }
+
+/* ---------- story strip ---------- */
+
+.story {
+  padding: 40px 0 96px;
+  border-bottom: 2px solid var(--paper-2);
+}
+
+.story h2 {
+  margin: 0 0 48px;
+  font-size: clamp(34px, 4vw, 48px);
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  max-width: 16ch;
+}
+
+.story-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+}
+
+.story-strip li {
+  position: relative;
+}
+
+.story-strip .print {
+  padding-bottom: 10px;
+  margin-bottom: 24px;
+}
+
+.story-step {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--white);
+  font-weight: 800;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.story-strip h3 {
+  margin: 14px 0 8px;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.story-strip p {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.story-stamp {
+  position: absolute;
+  right: -10px;
+  bottom: 22px;
+  padding: 4px 10px;
+  border: 3px solid var(--match);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--match);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transform: rotate(-7deg);
+}
+
+.story-actions {
+  margin-top: 48px;
+}
+
+/* ---------- key diagram ---------- */
+
+.keys {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.key-node {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 20px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--white);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+.key-root {
+  box-shadow: 6px 6px 0 var(--planet-mustard);
+  text-align: center;
+}
+
+.key-kicker {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.key-node strong {
+  font-size: 20px;
+}
+
+.key-node span:not(.key-kicker) {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.key-arrows {
+  width: min(300px, 80%);
+  height: 70px;
+}
+
+.key-arrows path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3;
+  stroke-dasharray: 6 6;
+}
+
+.key-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+}
+
+.keys figcaption {
+  margin-top: 20px;
+  font-size: 14px;
+  color: var(--ink-2);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .story-strip {
+    grid-template-columns: 1fr;
+    gap: 48px;
+    max-width: 440px;
+  }
+}
+
+@media (max-width: 640px) {
+  .key-pair {
+    grid-template-columns: 1fr;
+  }
+
+  .key-arrows {
+    display: none;
+  }
+
+  .keys .key-root {
+    margin-bottom: 20px;
+  }
+}

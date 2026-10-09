@@ -130,6 +130,35 @@ const NUMBERS = [
   { big: "0 / 702", text: "pairs of different photos mistaken for each other" },
 ];
 
+/** How one passkey becomes two keys. A plain description of what the app does, not sample data. */
+function KeyDiagram() {
+  return (
+    <figure className="keys" aria-label="One passkey becomes a creator ID and a wallet">
+      <div className="key-node key-root">
+        <span className="key-kicker">Your passkey</span>
+        <strong>Face ID, Touch ID or PIN</strong>
+      </div>
+      <svg className="key-arrows" viewBox="0 0 300 70" aria-hidden="true">
+        <path d="M150 0 C150 30 70 30 70 66" />
+        <path d="M150 0 C150 30 230 30 230 66" />
+      </svg>
+      <div className="key-pair">
+        <div className="key-node">
+          <span className="key-kicker">Creator ID</span>
+          <strong>Signs your records</strong>
+          <span>Goes on every record you register</span>
+        </div>
+        <div className="key-node">
+          <span className="key-kicker">Wallet</span>
+          <strong>Pays the gas</strong>
+          <span>Standard account, opens in any wallet</span>
+        </div>
+      </div>
+      <figcaption>Derived in your browser with Mera. Only the passkey id is saved.</figcaption>
+    </figure>
+  );
+}
+
 const FOOTER_LINKS: ReadonlyArray<{ title: string; links: ReadonlyArray<[string, string]> }> = [
   {
     title: "Origo",
@@ -213,6 +242,47 @@ export function Landing() {
       <main id="main">
         <Hero />
 
+        <section className="story" aria-labelledby="story-title">
+          <div className="wrap">
+            <h2 id="story-title">From the camera to the group chat, and back</h2>
+            <ol className="story-strip">
+              <li>
+                <figure className="print tilt-left">
+                  <img src="/demo/original.jpg" alt="The original photo" width={1280} height={960} loading="lazy" />
+                </figure>
+                <span className="story-step">1</span>
+                <h3>The photographer registers the original</h3>
+                <p>Signed with a passkey, written to Monad with the time. The photo itself never leaves their phone.</p>
+              </li>
+              <li>
+                <figure className="print tilt-right">
+                  <img src="/demo/crop-20.jpg" alt="A cropped, compressed copy" width={1024} height={768} loading="lazy" />
+                </figure>
+                <span className="story-step">2</span>
+                <h3>Copies spread</h3>
+                <p>Forwarded, compressed, screenshotted, cropped. Captions change, credits disappear.</p>
+              </li>
+              <li>
+                <figure className="print tilt-left">
+                  <img src="/demo/whatsapp-twice.jpg" alt="The copy someone wants to check" width={800} height={600} loading="lazy" />
+                  <span className="story-stamp">Registered first</span>
+                </figure>
+                <span className="story-step">3</span>
+                <h3>Anyone checks a copy</h3>
+                <p>Drop it on Origo. It finds who registered the photo first and when, with no account needed.</p>
+              </li>
+            </ol>
+            <div className="actions story-actions">
+              <a className="button primary" href={APP} onClick={onLinkClick}>
+                Check a photo
+              </a>
+              <a className="button outline" href="/app/register" onClick={onLinkClick}>
+                Register yours
+              </a>
+            </div>
+          </div>
+        </section>
+
         <Row
           id="how"
           title="It survives the group chat"
@@ -246,6 +316,17 @@ export function Landing() {
           </p>
         </Row>
 
+        <Row title="No seed phrase. Just your face." visual={<KeyDiagram />} flip tint>
+          <p>
+            Registering takes a passkey: Face ID, Touch ID or your device PIN. From that one passkey Origo derives two
+            keys right in the browser, with Mera: a creator ID that signs your records, and a wallet that pays the gas.
+          </p>
+          <p>
+            Nothing is stored but the passkey's id. A 24-word backup phrase restores both keys, and no MON is needed to
+            start: a relay link lets an editor or a friend pay for the registration while the record stays yours.
+          </p>
+        </Row>
+
         <section className="numbers" id="numbers">
           <div className="wrap">
             <h2>Tested on 27 real photos</h2>
@@ -276,17 +357,17 @@ export function Landing() {
               <Stars />
               <Owl className="closing-owl" />
             </div>
-            <h2>No server. No sign-up. Just Monad.</h2>
+            <h2>No server. No password. Just Monad.</h2>
             <p>
               The site is static files, the search runs on a public contract, and the code is open. If Origo disappears
               tomorrow, every record is still there.
             </p>
             <div className="actions">
-              <a className="button primary" href={GITHUB} target="_blank" rel="noreferrer">
-                Read the code
+              <a className="button primary" href={APP} onClick={onLinkClick}>
+                Launch the app
               </a>
-              <a className="button outline" href={CONTRACT} target="_blank" rel="noreferrer">
-                Verified contract
+              <a className="button outline" href={GITHUB} target="_blank" rel="noreferrer">
+                Read the code
               </a>
             </div>
           </div>
