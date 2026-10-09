@@ -22,6 +22,7 @@ It is being built for the **Monad Metropolis Hackathon**, Track 04 (Trust, Ident
    - No mock data and no mock features. Everything shown must be real and working.
    - No backend owned by us. Allowed: static frontend, smart contracts on Monad, public RPCs, and public/decentralized infrastructure (Envio, IPFS).
    - Commit history must cover the build window, so commit small and often.
+   - Every contract deployment (testnet and mainnet) must be verified on Sourcify/MonadVision in the same step. Command in `docs/origo/ARCHITECTURE.md` section 4.
 5. Only commit or push when the project owner asks.
 6. **Split commits.** Never bundle unrelated work into one commit. Make one small commit per logical change (for example: contract, its tests, SDK module, UI page, docs), each building on its own where possible. Use Conventional Commits style: `feat(sdk): ...`, `fix(contracts): ...`, `docs: ...`, `chore: ...`, `test(...)`. Stage specific paths, never `git add -A` blindly.
 
