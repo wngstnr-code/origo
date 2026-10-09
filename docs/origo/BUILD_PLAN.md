@@ -17,12 +17,12 @@ Rule of thumb: the MVP must work end to end on testnet by the end of Day 3. Noth
 - [ ] Deployer wallet + demo wallet; testnet MON from https://faucet.monad.xyz (owner solves the Cloudflare check); a small amount of mainnet MON for the Day 3 deploy
 
 ### Day 1: Sat Oct 10 (core logic)
-- [ ] SDK hash: trim, crop, luma, area resize, DCT, pHash, 8 variants, Hamming, degenerate check, thumbnail encoder (ARCHITECTURE section 5)
-- [ ] SDK index-math: segments, probe order, cursor encoding (mirrors the contract)
-- [ ] Fixtures: 20+ public-domain photos with attribution
-- [ ] Robustness suite v1, then freeze `MATCH_DISTANCE` and record the false-positive rate (G16)
-- [ ] Contract: `register` (EIP-712, random nonces, creator-bound commit, thumbnail), buckets, paginated `findMatches`, `recordsOf`, `getRecords`, `linkDerivative`, attesters (ARCHITECTURE section 7)
-- [ ] Foundry tests incl. the front-run test, the "no false negatives within 7" fuzz test, and the 10,000-record bucket gas test (G2, G9)
+- [x] SDK hash: trim, crop, luma, area resize, DCT, pHash, 8 variants, Hamming, degenerate check, thumbnail encoder moved to Day 2 web app (ARCHITECTURE section 5)
+- [x] SDK index-math: segments, probe order, cursor encoding (mirrors the contract)
+- [x] Fixtures: 20+ public-domain photos with attribution
+- [x] Robustness suite v1, then freeze `MATCH_DISTANCE` and record the false-positive rate (G16)
+- [x] Contract: `register` (EIP-712, random nonces, creator-bound commit, thumbnail), buckets, paginated `findMatches`, `recordsOf`, `getRecords`, `linkDerivative`, attesters (ARCHITECTURE section 7)
+- [x] Foundry tests incl. the front-run test, the "no false negatives within 7" fuzz test, and the 10,000-record bucket gas test (G2, G9)
 - [ ] Deploy to testnet, record the address and gas per `register`
 
 ### Day 2: Sun Oct 11 (web app, happy path)

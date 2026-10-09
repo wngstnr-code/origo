@@ -4,12 +4,12 @@ Read this first every session. Update it at the end of every session. Keep it sh
 
 ## Current status
 
-- **Phase:** Day 0. Repo scaffolded locally (pnpm workspace, Foundry, SDK, web app). SDK, web, and contracts build. No feature code yet.
+- **Phase:** Day 1 done except the testnet deploy (waiting for `DEPLOYER_PRIVATE_KEY` in `.env`). Contract (36 tests), SDK hash + index math (36 tests), robustness report done.
 - **Team:** solo (the project owner). **Hosting:** Vercel (static only).
 - **Last updated:** 2026-10-09
 - **Deadline:** Wed Oct 14, 10:59 WIB (Oct 13, 11:59 PM ET). Internal target: Tue Oct 13, 22:00 WIB.
 - **Repo:** https://github.com/wngstnr-code/origo (public). **App:** https://origo-monad.vercel.app
-- **Next action:** owner creates the dashboard team/project and gets faucet MON. Then Day 1.
+- **Next action:** owner puts a funded testnet key in `.env`, then deploy to testnet and start Day 2.
 
 ## Deployments
 
@@ -23,9 +23,12 @@ Read this first every session. Update it at the end of every session. Keep it sh
 
 | Metric | Value | How measured |
 | --- | --- | --- |
-| Gas per `register` | not measured (estimate 200k to 300k, about 0.02 to 0.03 MON) | `forge test --gas-report` |
-| `MATCH_DISTANCE` | 7 (provisional) | robustness suite |
-| False-positive rate at threshold | not measured | robustness suite |
+| Gas per `register` | about 424k (no thumbnail), about 525k (4 KB thumbnail) | `forge test --gas-report` |
+| Gas per `findMatches` page (256 candidates, 10k-entry bucket) | about 910k | Foundry test |
+| `MATCH_DISTANCE` | 7 (frozen); 8 to 11 = likely same, edited | `ROBUSTNESS.md` |
+| Copies found at <= 7 bits | 100% for compression, resize, WhatsApp x2, brightness, mirror, rotate, borders | `ROBUSTNESS.md` |
+| Closest different photos | 18 bits (0% false positives at <= 11) | `ROBUSTNESS.md` |
+| `phash` on a 4000 x 3000 image (Node) | 56 ms | vitest |
 
 ## Decision log
 
@@ -46,6 +49,9 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | Ranking: proof, then attestation, then earliest block; self-reported fields only tie-break | Self-reported fields can be inflated (G3) |
 | 2026-10-09 | Random unordered nonces + relay links | Lets anyone pay gas for a signed registration (G5, G12) |
 | 2026-10-09 | `HASH_VERSION` in signature, record, and bucket key | Future hash changes do not break old records (G11) |
+| 2026-10-09 | Commit uniqueness is per (creator, fileCommit), not global | A global check would let a front-runner block the honest registration |
+| 2026-10-09 | `MATCH_DISTANCE = 7` frozen; 8 to 11 shown as likely same | Robustness: copies <= 4 bits, different photos >= 18 bits |
+| 2026-10-09 | Manual crop in Verify is a must-have | Chat screenshots: 0% found with auto trim, 100% with manual crop |
 | 2026-10-09 | Production domain `origo-monad.vercel.app` | `origo-app.vercel.app` was already taken by an unrelated site; owner chose this. It is the passkey rpId (G6) |
 | 2026-10-09 | Foundry deps as pinned git submodules; SDK built with `tsc` | Reproducible builds; tsup DTS fails on TypeScript 6 |
 
@@ -67,3 +73,4 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | Hackathon research, 5 ideas compared, Origo chosen, build docs and CLAUDE.md written, existing docs translated to English |
 | 2026-10-09 | Gap audit (27 items in `GAPS.md`), spec updated, testnet RPC and faucet checked, solo + Vercel confirmed |
 | 2026-10-09 | GitHub repo created, Vercel project `origo-app` linked with domain `origo-monad.vercel.app`. Repo scaffolded: git, pnpm workspace, contracts (Foundry + OZ), `@origo/sdk` (constants, networks), `@origo/web` (Vite React, Vercel config), README, MIT license |
+| 2026-10-09 | Day 1: OrigoRegistry + 36 Foundry tests, SDK hash + index math + 36 vitest tests, 27 public-domain fixtures, robustness report. Cross-checked bucket key and cursor encoding between SDK and contract |

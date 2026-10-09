@@ -59,7 +59,7 @@ Ranking order: proven ownership, then attested creator, then earliest registrati
 ## Why Monad
 
 - **Capture-time registration needs fast finality.** Sub-second blocks mean a photo is anchored seconds after the shutter, before it can spread.
-- **Cheap state for an on-chain index.** Every registration writes a record, 4 index buckets, and an optional thumbnail, about 200k to 300k gas. At Monad's minimum base fee that is about 0.02 to 0.03 MON (well under $0.001), so a newsroom can register its whole archive.
+- **Cheap state for an on-chain index.** Every registration writes a record, 4 index buckets, and an optional thumbnail, about 424k gas (measured). At Monad's minimum base fee that is about 0.04 MON (around $0.001), so a newsroom can register its whole archive.
 - **Free, fast on-chain search.** Similarity search runs as an `eth_call` against the contract, so verification needs no indexer or server.
 - **Mera passkeys** give non-crypto users (photographers) an account with Face ID, and Origo uses the passkey PRF output for more than a wallet (a separate creator identity key).
 

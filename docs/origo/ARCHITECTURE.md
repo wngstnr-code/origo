@@ -90,24 +90,26 @@ Record deployed addresses in `packages/sdk/src/chain/addresses.ts` and in `PROGR
 - Node tests: sharp, auto-rotated, raw RGBA, **without** ICC conversion to sRGB.
 - HEIC on non-Safari browsers: detect and show a message (G15).
 
-**Steps:**
-1. **Border trim.** From each edge, drop a row or column while at least 98% of its pixels are within luma distance 8 of that edge's median. Stop at most 20% into the image per side. Applied at registration and verification.
+**Steps (exact definitions, any deviation breaks determinism):**
+1. **Border trim.** Compute luma (step 3) per pixel. For each side independently, the reference is the median luma of that side's outermost row or column in the original image. Drop rows (top, bottom) or columns (left, right) while at least 98% of the pixels in that line are within luma distance 8 of the reference, and stop after 20% of the height (rows) or width (columns) per side. The four sides are measured on the original image, then cropped once. Applied at registration and verification.
 2. **Manual crop (verification only, optional).** The user selects the photo area in a screenshot (G13). It is applied before step 1.
-3. **Luma.** `Y = 0.299 R + 0.587 G + 0.114 B`, float64.
-4. **Area-average resize to 32 x 32** in our own code (exact fractional coverage). Never use canvas scaling.
-5. **2D DCT-II**, separable, with a precomputed cosine table.
-6. **Low frequencies.** Top-left 8 x 8 (64 coefficients, including DC).
-7. **Threshold.** Median of the 64. Bit = 1 if coefficient > median.
-8. **Bit order.** Row-major. Coefficient (0,0) is bit 63 (MSB). `bigint` in TS, `uint64` in Solidity.
+3. **Luma.** `Y = 0.299 R + 0.587 G + 0.114 B` as float64 from 0..255 channel values. Alpha is ignored.
+4. **Area-average resize to 32 x 32** in our own code. Output pixel (ox, oy) is the coverage-weighted mean of the source pixels inside the source rectangle `[ox * W / 32, (ox + 1) * W / 32) x [oy * H / 32, (oy + 1) * H / 32)`, with fractional weights for partially covered pixels. Images smaller than 32 px in either dimension are rejected. Never use canvas scaling.
+5. **2D DCT-II, unnormalized:** `X[k] = sum over n of x[n] * cos(pi / 32 * (n + 0.5) * k)`, applied to every row, then to every column, with a precomputed cosine table. No scaling factors.
+6. **Low frequencies.** `D[ky][kx]` for ky, kx in 0..7 (64 coefficients, including DC).
+7. **Threshold.** Median of the 64 values (mean of the 32nd and 33rd sorted values). Bit = 1 if coefficient > median.
+8. **Bit order.** ky = 0..7 outer, kx = 0..7 inner. `D[0][0]` is bit 63 (MSB), `D[7][7]` is bit 0. `bigint` in TS, `uint64` in Solidity. Hex form: 16 lowercase hex digits with `0x`.
 9. **Version.** `HASH_VERSION = 1`. Any change to steps 1 to 8 requires a new version (G11).
+
+Floating point note: `Math.cos` may differ in the last bit between engines. That can only flip a bit whose coefficient sits exactly at the median, which the distance threshold absorbs. The cross-runtime check (G14) measures it.
 
 **Degenerate hashes:** popcount < 8 or > 56 is rejected by the SDK and the contract (G9).
 
-**Orientation variants (verification only):** the 8 dihedral transforms of the trimmed 32 x 32 luma matrix before the DCT, giving 8 hashes.
+**Orientation variants (verification only):** the 8 dihedral transforms of the resized 32 x 32 luma matrix before the DCT. Variant `v` in 0..3 = rotate clockwise `v` times. Variant `v` in 4..7 = mirror left-right, then rotate clockwise `v - 4` times. Variant 0 is the registered hash.
 
-**Thresholds (frozen after the Day 1 robustness suite, G16):**
-- `MATCH_DISTANCE = 7` (provisional): "same photo".
-- 8 to 11, found with probe radius 2: "possible match, low confidence".
+**Thresholds (frozen on 2026-10-09 from `ROBUSTNESS.md`, G16):**
+- `MATCH_DISTANCE = 7`: "same photo". Every compression, resize, brightness, mirror, rotation, and border case measured at most 4 bits.
+- 8 to 11, found with probe radius 2: "likely the same photo, edited or cropped". The closest pair of *different* photos measured 18 bits, even for 5 shots of the same flood scene, so this band is still safe.
 - `LINK_DISTANCE = 7`: on-chain limit for `linkDerivative`.
 
 **Thumbnail (opt-in, G10, G27):** long edge 96 px, WebP, quality reduced until at most 4,096 bytes.
@@ -120,8 +122,14 @@ Record deployed addresses in `packages/sdk/src/chain/addresses.ts` and in `PROGR
   - `p = 0`: 4 bucket reads, `r <= 3`.
   - `p = 1`: 68 bucket reads, `r <= 7` (default).
   - `p = 2`: 548 bucket reads, `r <= 11` (low-confidence pass).
-- **Search** is paginated (G9): it walks probes in a fixed order `(segment, probeIndex, offsetInBucket)`, stops after `maxCandidates` candidates, and returns `nextCursor` (0 = done). The client loops per variant and de-duplicates by id, keeping the minimum distance.
-- **Gas estimate** (pages of 128 slots: 8,000 load + 2,800 write + 17,000 growth on the first touch): record (2 to 3 slots, mostly one page) + 4 bucket appends on random pages + optional thumbnail calldata (about 64k). Expect **200k to 300k gas**, which is about 0.02 to 0.03 MON. Measure with `forge test --gas-report` and record it in `PROGRESS.md`.
+- **Probe order (contract and SDK must match):** for a 16-bit segment value `v` and radius `p`:
+  - radius 0: `[v]`
+  - radius 1 adds `v ^ (1 << b)` for b = 0..15, so the list is `[v, v^1, v^2, v^4, ..., v^32768]` (17 probes)
+  - radius 2 also adds `v ^ (1 << i) ^ (1 << j)` for i = 0..14, j = i+1..15, in that nested order (137 probes)
+
+  Segments are walked in order 0, 1, 2, 3, all probes of a segment before the next segment.
+- **Search** is paginated (G9). The state is `(segment, probeIndex, offsetInBucket)`. Cursor encoding: `cursor = (segment << 160) | (probeIndex << 96) | (offset << 1) | 1`. An input cursor of 0 means "start at (0, 0, 0)". A returned `nextCursor` of 0 means "done". `maxCandidates` counts bucket entries examined (not matches). Each examined entry loads the record's pHash and is returned only if its Hamming distance is at most `maxDistance`. Duplicates across probes or segments are possible; the client de-duplicates by id.
+- **Gas estimate** (pages of 128 slots: 8,000 load + 2,800 write + 17,000 growth on the first touch): record (2 to 3 slots, mostly one page) + 4 bucket appends on random pages + optional thumbnail calldata (about 64k). Measured: **about 424k gas** without a thumbnail and **about 525k** with a 4 KB thumbnail (about 0.04 to 0.05 MON at the minimum base fee). A `findMatches` page of 256 candidates at radius 1 over a 10,000-entry bucket costs about 910k gas, well under the 8.1M fast-pool limit.
 
 ## 7. Contract: `OrigoRegistry.sol`
 
@@ -168,7 +176,7 @@ contract OrigoRegistry is EIP712, Ownable {
     mapping(bytes32 => uint32[]) internal buckets;
     mapping(address => uint32[]) internal creatorRecords;    // G1
     mapping(address => mapping(uint256 => bool)) public usedNonce;
-    mapping(bytes32 => uint32) public idByCommit;            // fileCommit uniqueness
+    mapping(bytes32 => bool) public usedCommitKey;           // key = keccak256(abi.encode(creator, fileCommit))
     mapping(address => bool) public isAttester;
     mapping(address => string) public creatorLabel;
     mapping(address => address) public labelAttester;
@@ -181,7 +189,9 @@ contract OrigoRegistry is EIP712, Ownable {
     function register(Registration calldata r, bytes calldata creatorSig, bytes calldata thumbnail)
         external returns (uint32 id);
     // Checks: signature recovers creator; deadline >= now; nonce unused; hashVersion == HASH_VERSION;
-    // popcount(pHash) in [8, 56]; width, height > 0; fileCommit != 0 and unused;
+    // popcount(pHash) in [8, 56]; width, height > 0; source in {0, 1}; fileCommit != 0;
+    // (creator, fileCommit) not used before. Uniqueness is per creator, NOT global, so a front-runner who
+    // copies a pending fileCommit cannot block the honest registration (G2).
     // thumbnail.length <= 4096 and keccak256(thumbnail) == r.thumbnailHash (or both empty / zero).
 
     function linkDerivative(uint32 childId, uint32 parentId) external;
@@ -200,7 +210,9 @@ contract OrigoRegistry is EIP712, Ownable {
 }
 ```
 
-**Tests (Foundry):** happy path; bad signature; reused nonce; expired deadline; wrong hash version; degenerate hash; duplicate commit; oversize or mismatched thumbnail; relay (submitter differs from creator); front-run scenario (a copied commit fails the proof check bound to the attacker's address); `findMatches` fuzz test with no false negatives within distance 7 at radius 1; pagination returns the same set as one big call; 10,000 records in one bucket stays under 8.1M gas per page; `linkDerivative` rules; attester permissions; gas report.
+EIP-712 domain: name `Origo`, version `1`, chainId, verifyingContract. Owner is the deployer (`Ownable(msg.sender)`).
+
+**Tests (Foundry):** happy path; bad signature; reused nonce; expired deadline; wrong hash version; degenerate hash; duplicate (creator, commit); same commit by two different creators both succeed; oversize or mismatched thumbnail; relay (submitter differs from creator); front-run scenario (a copied commit fails the proof check bound to the attacker's address); `findMatches` fuzz test with no false negatives within distance 7 at radius 1; pagination returns the same set as one big call; 10,000 records in one bucket stays under 8.1M gas per page; `linkDerivative` rules; attester permissions; gas report.
 
 ## 8. Keys and accounts
 

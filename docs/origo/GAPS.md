@@ -24,10 +24,10 @@ Update the status here when an item changes.
 | G10 | No way to see the matched photo, so the user cannot confirm a match visually | Medium | Resolved (spec) |
 | G11 | Changing the hash algorithm later breaks old records | Medium | Resolved (spec) |
 | G12 | Sequential nonces break relayed or batched registrations | Low | Resolved (spec) |
-| G13 | Screenshots and text overlays are not handled by border trim alone | Medium | Resolved (spec) + code |
+| G13 | Screenshots and text overlays are not handled by border trim alone | Medium | Measured: manual crop required (code on Day 2) |
 | G14 | Hash determinism across browsers and Node | High | Resolve in code |
 | G15 | HEIC photos cannot be decoded in Chrome | Medium | Resolve in code |
-| G16 | `MATCH_DISTANCE` and the false-positive rate are unproven | High | Resolve in code |
+| G16 | `MATCH_DISTANCE` and the false-positive rate are unproven | High | Resolved (measured) |
 | G17 | Testnet can be reset | Medium | Resolved (spec) |
 | G18 | RPC rate limits | Low | Resolved (spec) |
 | G19 | Track 04 needs proof that other apps can build on Origo | Medium | Resolved (spec) + code |
@@ -35,7 +35,9 @@ Update the status here when an item changes.
 | G21 | Perceptual hashes are not robust against deliberate adversarial attacks | Medium | Accepted limitation |
 | G22 | A thief who has the real original file has equal evidence | Low | Accepted limitation |
 | G23 | Attesters are centrally managed | Low | Accepted limitation |
-| G24 | Heavy crops do not match in the MVP | Medium | Accepted limitation (tiles are stretch) |
+| G24 | Crops of 10% or more do not match in the MVP | Medium | Accepted limitation, measured (tiles are stretch) |
+| G28 | Tampering with signed fields makes ecrecover return a different creator | Low | Accepted (harmless) |
+| G29 | `findMatches` with an unbounded `maxCandidates` allocates memory proportional to the registry | Low | Resolved (SDK always pages with 256) |
 | G25 | `source = Capture` can be faked | Low | Accepted limitation |
 | G26 | Ownership proof is not recorded on-chain | Low | Accepted limitation |
 | G27 | On-chain thumbnails are permanent and public | Low | Resolved (spec): opt-in |
@@ -116,6 +118,13 @@ Real screenshots have non-uniform status bars and app UI, and hoax images often 
 - Auto border trim first, then a **manual crop tool** in Verify ("select the photo area"). This is simple, robust, and honest.
 - The robustness suite adds cases for a WhatsApp chat screenshot, caption bars, and a text overlay, so the README can show the real limits.
 
+### G13 measured (2026-10-09)
+- Chat screenshot with auto trim only: 0% found (median 26 bits), because the chat UI is not a uniform border. With the manual crop: 100% found at distance 0.
+- Caption bars with text: 4% found at 11 bits, because the bars contain text and are not uniform. Manual crop fixes this the same way.
+- Text overlay on the photo: 70% at 7 bits, 93% at 11 bits.
+
+Consequence: the manual crop tool in Verify is a must-have, not optional. Stretch: automatic photo-region detection inside screenshots.
+
 ### G14. Determinism across browsers (High, resolve in code)
 JPEG decoders, chroma upsampling, ICC color management (Display P3 iPhone photos), and EXIF orientation can differ between Chrome, Safari, and Node (sharp).
 **Plan:**
@@ -127,8 +136,10 @@ JPEG decoders, chroma upsampling, ICC color management (Display P3 iPhone photos
 iPhone gallery photos may be HEIC, which Chrome cannot decode.
 **Plan:** Safari decodes HEIC natively. On other browsers, detect HEIC and show "Open in Safari, or export as JPEG". The capture path returns a browser-decodable file (to verify in G4). A WASM HEIC decoder is a stretch goal only.
 
-### G16. Thresholds are unproven (High, resolve in code)
-`MATCH_DISTANCE = 7` is provisional.
+### G16. Thresholds (High, resolved by measurement)
+Measured on 27 real photos (`ROBUSTNESS.md`): every compression, resize, WhatsApp-like double compression, brightness, mirror, rotation, and border case stayed within 4 bits. Different photos were never closer than 18 bits, including 5 shots of the same flood scene. `MATCH_DISTANCE = 7` is frozen, and 8 to 11 is shown as "likely the same photo, edited or cropped".
+
+Original plan:
 **Plan:** the robustness suite on Day 1 (more than 20 public-domain photos, all transformations, plus pairwise distances between different photos) decides the threshold and reports the false-positive rate. If needed, use probe radius 2 for verification (`r <= 11`, still a view call).
 
 ### G17. Testnet resets (Medium, resolved)
@@ -154,7 +165,10 @@ If the original file itself is stolen (hacked cloud, a client leak), the thief h
 ### G23. Central attesters (Low, accepted)
 The owner manages the attester list in the MVP. Roadmap: multiple independent attesters or an ERC-8004-style registry. The demo uses a clearly fictional "Origo Demo Attester", never a real organization.
 
-### G24. Heavy crops (Medium, accepted for MVP)
+### G24. Crops (Medium, accepted for MVP, measured)
+Measured: center crop 5% is found 67% at 7 bits and 96% at 11 bits; center crop 10%, 4% and 41%; center crop 20% and one-side crop 10%, 0% and 0 to 7%. Tiles are the first stretch goal.
+
+Original note:
 Without tiles, crops beyond about 10 to 20% may not match. The manual crop in Verify does not help when the query *is* a crop. Tiles are the first stretch goal. The README states the measured limit from the robustness suite.
 
 ### G25. `source = Capture` can be faked (Low, accepted)
@@ -165,3 +179,9 @@ A contract cannot decode images, so the proof runs in the verifier's browser. It
 
 ### G27. Thumbnails are permanent and public (Low, resolved)
 Opt-in, with a clear notice. Upload of others' photos defaults to no thumbnail.
+
+### G28. Tampered signed fields (Low, accepted)
+If a relayer changes a signed field, `ecrecover` returns a different, random address instead of reverting, so the record is attributed to an address nobody controls. The original creator is not affected and the relayer gains nothing. Inherent to ECDSA recovery.
+
+### G29. Unbounded search page (Low, resolved)
+`findMatches` sizes its result arrays by `min(maxCandidates, 4 * recordCount)`. The SDK always pages with `maxCandidates = 256`, so a page stays under 1M gas.
