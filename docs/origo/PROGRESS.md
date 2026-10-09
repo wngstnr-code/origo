@@ -11,7 +11,7 @@ Read this first every session. Update it at the end of every session. Keep it sh
 - **Deadline:** Wed Oct 14, 10:59 WIB (Oct 13, 11:59 PM ET). Internal target: Tue Oct 13, 22:00 WIB.
 - **Repo:** https://github.com/wngstnr-code/origo (public). **App:** https://origo-monad.vercel.app
 - **Deployer:** `0x7776BE3f1fdd370097Ee8FaD3A642f04eC9f4Ed1` (key only in local `.env`).
-- **Frontend:** landing page v1 built (`apps/web/src/landing`): composition modeled on joinmastodon.org, rebuilt from scratch (their repo has no license, so no code or art copied), own owl mascot, live demos (in-browser hashing and a live registry read). Owner will redesign it step by step.
+- **Frontend:** landing page v1 built (`apps/web/src/landing`): composition modeled on joinmastodon.org, rebuilt from scratch (their repo has no license, so no code or art copied), own owl mascot and owl logo, live demos (in-browser hashing and a live registry read, lazy loaded), site footer, share metadata and OG image. Waiting on the app: passkey feature row, a working "Launch app" target (`/app`), and a user-flow section.
 - **Next action:** finish the landing with the owner, then the app (Verify, Register, Prove, Relay, Me) against testnet v4.
 
 ## Deployments
@@ -97,3 +97,4 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | Pre-freeze contract review: removed linkDerivative, added cursor validation, id bound, Ownable2Step. Testnet v3 deployed, verified, smoke-tested. Contract frozen |
 | 2026-10-09 | Closed flooding (findEarliest) and attester overwrite (per-attester labels); 54 tests; testnet v4 deployed, verified, smoke-tested, attester flow tested |
 | 2026-10-09 | Frontend reference rounds 3 to 5 (playful, landing only), landing v1 with live hash demos and a live record read |
+| 2026-10-09 | Landing polish: owl logo and favicon, footer, launch button, mobile fixes, lazy demos (initial JS 508 KB to 237 KB), OG image and meta, RPC error state checked |
