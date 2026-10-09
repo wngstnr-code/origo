@@ -12,7 +12,10 @@ Read this first every session. Update it at the end of every session. Keep it sh
 - **Repo:** https://github.com/wngstnr-code/origo (public). **App:** https://origo-monad.vercel.app
 - **Deployer:** `0x7776BE3f1fdd370097Ee8FaD3A642f04eC9f4Ed1` (key only in local `.env`).
 - **Frontend:** landing page v1 built (`apps/web/src/landing`): composition modeled on joinmastodon.org, rebuilt from scratch (their repo has no license, so no code or art copied), own owl mascot and owl logo, live demos (in-browser hashing and a live registry read, lazy loaded), site footer, share metadata and OG image. Waiting on the app: passkey feature row, a working "Launch app" target (`/app`), and a user-flow section.
-- **Next action:** finish the landing with the owner, then the app (Verify, Register, Prove, Relay, Me) against testnet v4.
+- **App:** all five pages built against testnet v4 (`apps/web/src/app`): Verify, Record (with Prove), Register (Mera passkey, crop protection, optional preview, own wallet or relay link), My photos (account, backup phrase, restore from phrase), Relay (pay with passkey or browser wallet). Prove was merged into the Record page. SDK gained `keys/` (wallet BIP-44 + creator HKDF + backup phrase) with 5 tests.
+- **Tested in the browser:** Verify (WhatsApp copy 0 bits, mirror 0 bits, chat screenshot found after manual crop at 2 bits, unknown photo), Record and Prove (copy fails, original passes), Register signing and pricing (about 1.0 MON with tiles, 0.06 MON without), relay link round trip with thumbnail, invalid and already-registered relay links.
+- **Not yet tested:** the real passkey prompt and a paid registration (needs the owner's Touch ID and faucet MON), and paying a relay link with a browser wallet.
+- **Next action:** owner tests passkey + registration on localhost, then on origo-monad.vercel.app; then mainnet deploy.
 
 ## Deployments
 
@@ -46,6 +49,8 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | --- | --- | --- |
 | 2026-10-09 | Build Origo for Track 04 | Only idea that is fully backend-free and oracle-free, strongest demo moment, fits the official Track 04 example |
 | 2026-10-09 | Name "Origo" (earlier working names: Sidik, Rupa) | Chosen by the project owner |
+| 2026-10-09 | Prove ownership lives on the Record page, not its own page | The proof is always about one record; fewer pages to build and explain |
+| 2026-10-09 | Passkey keys stay in Mera sessions for the tab's lifetime (ended on sign out and pagehide) | One prompt per visit instead of per signature; nothing but the credential id is stored |
 | 2026-10-09 | Landing follows the joinmastodon.org layout, rebuilt from scratch with our own owl mascot | Owner picked Mastodon after five reference rounds; its repo has no license, so copying code or art would be infringement and impersonation |
 | 2026-10-09 | 64-bit pHash with our own area-average resize | Deterministic across browsers; canvas resampling differs by engine |
 | 2026-10-09 | Multi-index hashing, 4 x 16-bit segments, probe radius 1 | Pigeonhole guarantee finds every record within distance 7 in a view call |
@@ -98,3 +103,4 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | Closed flooding (findEarliest) and attester overwrite (per-attester labels); 54 tests; testnet v4 deployed, verified, smoke-tested, attester flow tested |
 | 2026-10-09 | Frontend reference rounds 3 to 5 (playful, landing only), landing v1 with live hash demos and a live record read |
 | 2026-10-09 | Landing polish: owl logo and favicon, footer, launch button, mobile fixes, lazy demos (initial JS 508 KB to 237 KB), OG image and meta, RPC error state checked |
+| 2026-10-09 | App pages: Verify, Record + Prove, Register, My photos, Relay; SDK keys module |

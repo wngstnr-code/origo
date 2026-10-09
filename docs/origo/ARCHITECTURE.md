@@ -59,7 +59,7 @@ monad/
     test/                   # unit tests + robustness suite
     fixtures/               # public-domain photos + ATTRIBUTION.md
   apps/web/
-    src/pages/              # Register, Verify, Prove, Relay, Me (records + backup)
+    src/app/                # Verify (/app), Record + Prove (/app/record/:id), Register, Me (/app/me), Relay (/app/relay#...)
     src/lib/                # browser decode, capture input, IndexedDB
   examples/verify-widget/   # one static HTML page that uses the SDK (G19)
   docs/
