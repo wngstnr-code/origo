@@ -1,9 +1,100 @@
+@import "@fontsource-variable/manrope";
+@import "@fontsource/ibm-plex-mono/400.css";
+
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color-scheme: light dark;
+  /* night sky of the hero */
+  --space: #24102f;
+  --space-2: #34184a;
+  /* light surfaces */
+  --paper: #fbf8f3;
+  --paper-2: #f1ece4;
+  --white: #fffdf9;
+  /* text */
+  --ink: #1d1626;
+  --ink-2: #5c5566;
+  --on-space: #f6f0ff;
+  /* the one action color */
+  --accent: #6d4aff;
+  --accent-press: #5634e8;
+  /* status only */
+  --match: #2b8a4b;
+  --warn: #b26a12;
+  --diff: #ef5b4c;
+  /* illustration */
+  --owl: #f0a33c;
+  --owl-2: #c9781e;
+  --owl-face: #fbdcae;
+  --owl-lid: #e9b46c;
+  --beak: #e2762b;
+  --wood: #7a4a2b;
+  --metal: #59627a;
+  --lens: #9fd6ea;
+  --planet-lilac: #9f86ea;
+  --planet-lilac-2: #7d63d6;
+  --planet-coral: #e8655a;
+  --planet-coral-2: #c94c44;
+  --planet-mustard: #f2c14e;
+  --planet-mustard-2: #d9a32e;
+
+  --font: "Manrope Variable", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  font-family: var(--font);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  padding: 24px 16px;
+  background: var(--paper);
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.small {
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
