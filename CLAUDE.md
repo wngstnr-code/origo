@@ -37,7 +37,6 @@ It is being built for the **Monad Metropolis Hackathon**, Track 04 (Trust, Ident
 | `docs/origo/GAPS.md` | Known gaps, blockers, and limitations with status. Check before designing anything new |
 | `docs/origo/CONTRACT_REVIEW.md` | Pre-freeze security review of the contract: changes made and accepted risks |
 | `docs/origo/DESIGN.md` | Design direction, tokens, anti-AI-slop rules, and the UI review gate |
-| `docs/origo/FRONTEND_REFERENCES.md` | Vetted open-source landing and app references with live links and licenses |
 | `docs/origo/BUILD_PLAN.md` | Day-by-day plan to the deadline, MVP vs stretch, submission checklist, demo video script |
 | `docs/hackathon.md` | Hackathon facts: tracks, rubric, bounties, rules, judges, resources |
 | `docs/project-ideas.md` | Research on past winners, market landscape, and the 5 ideas compared |

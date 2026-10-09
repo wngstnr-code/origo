@@ -1,6 +1,8 @@
 # Origo: Design Direction
 
-Owner requirement: **the UI must not look AI-generated.** The direction below is a proposal; the owner asked not to lock onto one theme, so the final look is chosen from `FRONTEND_REFERENCES.md`. The "Never" list and the review gate apply whatever direction is chosen. Every screen is checked against the "Never" list and the convergence test at the end before it ships.
+> **Current direction (owner decision, 2026-10-09):** playful, using the layout of https://joinmastodon.org rebuilt from scratch (their repo has no license, so no code or illustrations are copied). Night-sky hero with our own owl mascot cropped at the bottom left, planets, a light "shore" curve, then alternating text and visual rows, a numbers band, and a closing call to action. Tokens live in `apps/web/src/index.css`. The editorial direction below is kept for reference; the "Never" list and the review gate still apply.
+
+Owner requirement: **the UI must not look AI-generated.** The "Never" list and the review gate apply whatever direction is chosen. Every screen is checked against the "Never" list and the convergence test at the end before it ships.
 
 ## Direction
 
@@ -14,7 +16,7 @@ Type mood: editorial, exact, quiet
 Motion:    crisp, short, purposeful (no floating blobs, no bounce)
 ```
 
-References (see `FRONTEND_REFERENCES.md`): LetsSeal for tone and the verify layout, PicPeak for photo cards with monospace metadata, TrueShot for the live verification log.
+Earlier references: LetsSeal for tone and the verify layout, PicPeak for photo cards with monospace metadata, TrueShot for the live verification log.
 
 ## Signature elements (what makes it ours)
 

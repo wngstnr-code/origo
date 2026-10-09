@@ -11,7 +11,8 @@ Read this first every session. Update it at the end of every session. Keep it sh
 - **Deadline:** Wed Oct 14, 10:59 WIB (Oct 13, 11:59 PM ET). Internal target: Tue Oct 13, 22:00 WIB.
 - **Repo:** https://github.com/wngstnr-code/origo (public). **App:** https://origo-monad.vercel.app
 - **Deployer:** `0x7776BE3f1fdd370097Ee8FaD3A642f04eC9f4Ed1` (key only in local `.env`).
-- **Next action:** Day 2 (web app: Mera onboarding, Register with crop protection, Verify with manual crop) against testnet v4.
+- **Frontend:** landing page v1 built (`apps/web/src/landing`): composition modeled on joinmastodon.org, rebuilt from scratch (their repo has no license, so no code or art copied), own owl mascot, live demos (in-browser hashing and a live registry read). Owner will redesign it step by step.
+- **Next action:** finish the landing with the owner, then the app (Verify, Register, Prove, Relay, Me) against testnet v4.
 
 ## Deployments
 
@@ -45,6 +46,7 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | --- | --- | --- |
 | 2026-10-09 | Build Origo for Track 04 | Only idea that is fully backend-free and oracle-free, strongest demo moment, fits the official Track 04 example |
 | 2026-10-09 | Name "Origo" (earlier working names: Sidik, Rupa) | Chosen by the project owner |
+| 2026-10-09 | Landing follows the joinmastodon.org layout, rebuilt from scratch with our own owl mascot | Owner picked Mastodon after five reference rounds; its repo has no license, so copying code or art would be infringement and impersonation |
 | 2026-10-09 | 64-bit pHash with our own area-average resize | Deterministic across browsers; canvas resampling differs by engine |
 | 2026-10-09 | Multi-index hashing, 4 x 16-bit segments, probe radius 1 | Pigeonhole guarantee finds every record within distance 7 in a view call |
 | 2026-10-09 | `register` does not scan for duplicates; `linkDerivative` is permissionless | Keeps registration gas low on Monad's page-priced storage |
@@ -94,3 +96,4 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | Tiles experiment, opt-in crop protection in contract (49 tests) and SDK (43 tests), testnet v2 deploy + verification + smoke test |
 | 2026-10-09 | Pre-freeze contract review: removed linkDerivative, added cursor validation, id bound, Ownable2Step. Testnet v3 deployed, verified, smoke-tested. Contract frozen |
 | 2026-10-09 | Closed flooding (findEarliest) and attester overwrite (per-attester labels); 54 tests; testnet v4 deployed, verified, smoke-tested, attester flow tested |
+| 2026-10-09 | Frontend reference rounds 3 to 5 (playful, landing only), landing v1 with live hash demos and a live record read |
