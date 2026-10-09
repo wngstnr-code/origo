@@ -682,18 +682,133 @@ contract OrigoRegistryTest is Test {
         emit OrigoRegistry.Attested(alice.addr, att, "Alice Photo");
         vm.prank(att);
         registry.attest(alice.addr, "Alice Photo");
-        assertEq(registry.creatorLabel(alice.addr), "Alice Photo");
-        assertEq(registry.labelAttester(alice.addr), att);
+        assertEq(registry.labelOf(alice.addr, att), "Alice Photo");
 
         vm.prank(att);
         registry.attest(alice.addr, "");
-        assertEq(registry.creatorLabel(alice.addr), "");
-        assertEq(registry.labelAttester(alice.addr), address(0));
+        assertEq(registry.labelOf(alice.addr, att), "");
 
         registry.setAttester(att, false);
         vm.prank(att);
         vm.expectRevert(OrigoRegistry.NotAttester.selector);
         registry.attest(alice.addr, "x");
+    }
+
+    function test_labels_perAttesterCannotOverwrite() public {
+        address a1 = makeAddr("attester1");
+        address a2 = makeAddr("attester2");
+        registry.setAttester(a1, true);
+        registry.setAttester(a2, true);
+
+        vm.prank(a1);
+        registry.attest(alice.addr, "Newsroom A photographer");
+        vm.prank(a2);
+        registry.attest(alice.addr, "Press association member");
+
+        // a2 writing again only changes a2's own label
+        vm.prank(a2);
+        registry.attest(alice.addr, "Press association member 2026");
+        assertEq(registry.labelOf(alice.addr, a1), "Newsroom A photographer");
+        assertEq(registry.labelOf(alice.addr, a2), "Press association member 2026");
+
+        (address[] memory by, string[] memory labels) = registry.labelsOf(alice.addr);
+        assertEq(by.length, 2);
+        assertEq(by[0], a1);
+        assertEq(labels[0], "Newsroom A photographer");
+        assertEq(by[1], a2);
+
+        // a1 revokes its own label; a2's stays
+        vm.prank(a1);
+        registry.attest(alice.addr, "");
+        (by, labels) = registry.labelsOf(alice.addr);
+        assertEq(by.length, 1);
+        assertEq(by[0], a2);
+
+        // revoking an attester hides its labels and removes it from attesters()
+        registry.setAttester(a2, false);
+        (by, labels) = registry.labelsOf(alice.addr);
+        assertEq(by.length, 0);
+        assertEq(registry.attesters().length, 1);
+        assertEq(registry.attesters()[0], a1);
+
+        // re-granting does not duplicate the attester list and restores the stored label
+        registry.setAttester(a2, true);
+        assertEq(registry.attesters().length, 2);
+        (by, labels) = registry.labelsOf(alice.addr);
+        assertEq(by.length, 1);
+        assertEq(labels[0], "Press association member 2026");
+    }
+
+    function test_earliest_survivesFlooding() public {
+        uint32 original = _register(alice, H, _commit(1));
+        // The copy differs from the original by 1 bit in segment 0, so the paginated walk starts in the
+        // copy's own segment-0 bucket. The attacker floods exactly that bucket with 300 later entries.
+        uint64 copy = H ^ (uint64(1) << 48);
+        uint64 copySeg0 = copy & 0xFFFF000000000000;
+        uint256 c = 10;
+        for (uint256 k = 0; k < 300; k++) {
+            uint64 junk = copySeg0 | (uint64(0x0F0F_00FF_F00F) ^ uint64(k << 4));
+            _register(bob, junk, _commit(++c));
+        }
+
+        // Paginated walk: the first page of 256 is spent entirely on junk.
+        (uint32[] memory p1,,, uint256 next) = registry.findMatches(copy, 7, 1, 0, 256);
+        for (uint256 i = 0; i < p1.length; i++) {
+            assertTrue(p1[i] != original);
+        }
+        assertTrue(next != 0);
+
+        // Earliest-first: the original is returned in one call.
+        (uint32[] memory ids, uint8[] memory tiles, uint8[] memory d, bool complete) =
+            registry.findEarliest(copy, 7, 1, 8);
+        bool found;
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (ids[i] == original) {
+                found = true;
+                assertEq(tiles[i], 0);
+                assertEq(d[i], 1);
+            }
+        }
+        assertTrue(found);
+        assertFalse(complete);
+    }
+
+    function test_earliest_completeMatchesFullScan() public {
+        for (uint256 i = 0; i < 20; i++) {
+            _register(alice, H ^ uint64(i * 0x01010101), _commit(i + 1));
+        }
+        (uint32[] memory e,,, bool complete) = registry.findEarliest(H, 11, 2, 32);
+        assertTrue(complete);
+        (uint32[] memory f,,,) = registry.findMatches(H, 11, 2, 0, type(uint256).max);
+        // same set of ids (both may contain duplicates)
+        assertEq(_uniq(e), _uniq(f));
+    }
+
+    function test_earliest_rejectsBadParams() public {
+        vm.expectRevert(OrigoRegistry.PerBucketTooLarge.selector);
+        registry.findEarliest(H, 7, 1, 0);
+        vm.expectRevert(OrigoRegistry.PerBucketTooLarge.selector);
+        registry.findEarliest(H, 7, 1, 33);
+        vm.expectRevert(OrigoRegistry.RadiusTooLarge.selector);
+        registry.findEarliest(H, 7, 3, 8);
+    }
+
+    function test_gas_findEarliestRadius1() public {
+        for (uint256 i = 0; i < 50; i++) {
+            _register(alice, H ^ uint64(i << 3), _commit(i + 1));
+        }
+        uint256 g = gasleft();
+        registry.findEarliest(H, 7, 1, 8);
+        uint256 used = g - gasleft();
+        console2.log("findEarliest radius 1, perBucket 8 gas:", used);
+        assertLt(used, 8_100_000);
+    }
+
+    /// @dev Bitmap of ids (ids < 256 in these tests) to compare sets.
+    function _uniq(uint32[] memory ids) internal pure returns (uint256 bits) {
+        for (uint256 i = 0; i < ids.length; i++) {
+            bits |= uint256(1) << ids[i];
+        }
     }
 
     function test_eip712Domain() public view {
