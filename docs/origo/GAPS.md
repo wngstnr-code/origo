@@ -35,7 +35,7 @@ Update the status here when an item changes.
 | G21 | Perceptual hashes are not robust against deliberate adversarial attacks | Medium | Accepted limitation |
 | G22 | A thief who has the real original file has equal evidence | Low | Accepted limitation |
 | G23 | Attesters are centrally managed | Low | Accepted limitation |
-| G24 | Crops of 10% or more do not match in the MVP | Medium | Accepted limitation, measured (tiles are stretch) |
+| G24 | Crops of 10% or more do not match without tiles | Medium | Resolved: opt-in crop protection (39 tiles), measured |
 | G28 | Tampering with signed fields makes ecrecover return a different creator | Low | Accepted (harmless) |
 | G29 | `findMatches` with an unbounded `maxCandidates` allocates memory proportional to the registry | Low | Resolved (SDK always pages with 256) |
 | G25 | `source = Capture` can be faked | Low | Accepted limitation |
@@ -165,7 +165,22 @@ If the original file itself is stolen (hacked cloud, a client leak), the thief h
 ### G23. Central attesters (Low, accepted)
 The owner manages the attester list in the MVP. Roadmap: multiple independent attesters or an ERC-8004-style registry. The demo uses a clearly fictional "Origo Demo Attester", never a real organization.
 
-### G24. Crops (Medium, accepted for MVP, measured)
+### G24. Crops (Medium, resolved with opt-in tiles)
+**Fix (2026-10-09):** opt-in "crop protection" registers 39 tile hashes (ARCHITECTURE section 5). Measured with `packages/sdk/scripts/tiles-experiment.mjs` on the 27 fixtures:
+
+| Query | Without tiles (<= 7 / <= 11) | With 39 tiles (<= 7 / <= 11) |
+| --- | --- | --- |
+| Center crop 10% | 4% / 41% | 93% / 100% |
+| Center crop 20% | 0% / 0% | 96% / 100% |
+| Center crop 30% | 0% / 0% | 96% / 96% |
+| One-side crop 10% | 0% / 7% | 96% / 96% |
+| Corner crop 15% | 0% / 0% | 7% / 52% |
+| Random crop 75 to 95% per axis | 0% / 0% | 44% / 89% |
+| Closest different photos | 18 bits | 14 bits (0% false positives at <= 11) |
+
+Remaining limit: corner crops and arbitrary crops at 7 bits; tile matches at 8 to 11 bits are shown as low confidence. Cost: tiles are opt-in because they add bucket writes (gas measured in `PROGRESS.md`).
+
+Before tiles:
 Measured: center crop 5% is found 67% at 7 bits and 96% at 11 bits; center crop 10%, 4% and 41%; center crop 20% and one-side crop 10%, 0% and 0 to 7%. Tiles are the first stretch goal.
 
 Original note:

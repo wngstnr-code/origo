@@ -119,12 +119,19 @@ Floating point note: `Math.cos` may differ in the last bit between engines. That
 - 8 to 11, found with probe radius 2: "likely the same photo, edited or cropped". The closest pair of *different* photos measured 18 bits, even for 5 shots of the same flood scene, so this band is still safe.
 - `LINK_DISTANCE = 7`: on-chain limit for `linkDerivative`.
 
+**Tiles, "crop protection" (opt-in, G24, decided from `tiles-experiment.mjs`):** at registration, after border trim, hash 39 sub-windows of the trimmed content rect with `phash(img, { crop: rect, trim: false })`. Window list, in this exact order (tile index = position in this list + 1):
+- scale pairs `(sx, sy)`: `(0.9, 0.9)`, `(0.8, 0.8)`, `(0.9, 1)`, `(1, 0.9)`, `(0.8, 1)`, `(1, 0.8)`, `(0.7, 0.7)`
+- for each pair, y offsets outer, x offsets inner, each from `[0, (1 - s) / 2, 1 - s]` (just `[0]` when s = 1)
+- rect = `{ x: round(fx * W), y: round(fy * H), width: round(sx * W), height: round(sy * H) }` relative to the trimmed content rect
+
+That gives 9 + 9 + 3 + 3 + 3 + 3 + 9 = 39 tiles. Verification is unchanged: the query's 8 variants are searched, and a hit on a tile entry means "a crop of record #id". Measured: center crops of 10 to 30% and one-side crops of 10% are found 93 to 96% at 7 bits; random crops (75 to 95% per axis) 44% at 7 bits and 89% at 11 bits; the closest different photos drop from 18 to 14 bits (still 0% false positives at 11).
+
 **Thumbnail (opt-in, G10, G27):** long edge 96 px, WebP, quality reduced until at most 4,096 bytes.
 
 ## 6. On-chain index: multi-index hashing
 
 - **Segments:** `seg[i] = (h >> (48 - 16 i)) & 0xFFFF`, i = 0..3.
-- **Buckets:** `mapping(bytes32 => uint32[]) buckets`, key `keccak256(abi.encodePacked(uint8(HASH_VERSION), uint8(i), uint16(seg[i])))`. Ids are `uint32`, so 8 ids pack into one slot.
+- **Buckets:** `mapping(bytes32 => uint32[]) buckets`, key `keccak256(abi.encodePacked(uint8(HASH_VERSION), uint8(i), uint16(seg[i])))`. Entries are `uint64` (`id << 8 | tileIndex`), so 4 entries pack into one slot.
 - **Guarantee:** if `hamming(a, b) <= r`, at least one segment differs by at most `floor(r / 4)` bits. With per-segment probe radius `p = floor(r / 4)`:
   - `p = 0`: 4 bucket reads, `r <= 3`.
   - `p = 1`: 68 bucket reads, `r <= 7` (default).
@@ -136,7 +143,7 @@ Floating point note: `Math.cos` may differ in the last bit between engines. That
 
   Segments are walked in order 0, 1, 2, 3, all probes of a segment before the next segment.
 - **Search** is paginated (G9). The state is `(segment, probeIndex, offsetInBucket)`. Cursor encoding: `cursor = (segment << 160) | (probeIndex << 96) | (offset << 1) | 1`. An input cursor of 0 means "start at (0, 0, 0)". A returned `nextCursor` of 0 means "done". `maxCandidates` counts bucket entries examined (not matches). Each examined entry loads the record's pHash and is returned only if its Hamming distance is at most `maxDistance`. Duplicates across probes or segments are possible; the client de-duplicates by id.
-- **Gas estimate** (pages of 128 slots: 8,000 load + 2,800 write + 17,000 growth on the first touch): record (2 to 3 slots, mostly one page) + 4 bucket appends on random pages + optional thumbnail calldata (about 64k). Measured: **about 424k gas** without a thumbnail and **about 525k** with a 4 KB thumbnail (about 0.04 to 0.05 MON at the minimum base fee). A `findMatches` page of 256 candidates at radius 1 over a 10,000-entry bucket costs about 910k gas, well under the 8.1M fast-pool limit.
+- **Gas estimate** (pages of 128 slots: 8,000 load + 2,800 write + 17,000 growth on the first touch): record (2 to 3 slots, mostly one page) + 4 bucket appends on random pages + optional thumbnail calldata (about 64k). Measured (fresh state): **425k gas** without tiles, **526k** with a 4 KB thumbnail, **7.74M** with 39 tiles, **7.84M** with 39 tiles and a thumbnail (under the 30M transaction limit). At the 100 gwei minimum base fee that is about 0.04 MON without tiles and about 0.8 MON with crop protection. A `findMatches` page of 256 candidates at radius 1 over a 10,000-entry bucket costs about 1.01M gas, well under the 8.1M fast `eth_call` pool. `findMatches` caps a page at `MAX_PAGE = 1024` entries.
 
 ## 7. Contract: `OrigoRegistry.sol`
 
@@ -165,6 +172,7 @@ contract OrigoRegistry is EIP712, Ownable {
         bytes32 fileCommit;       // keccak256(abi.encode(sha256(originalBytes), creator))  (G2)
         // slot 3
         uint64  registeredBlock;  // for single-block getLogs (G1, G10)
+        uint8   tileCount;        // 0 = no crop protection
     }
 
     struct Registration {         // EIP-712 typed data
@@ -175,12 +183,14 @@ contract OrigoRegistry is EIP712, Ownable {
         uint8   source;
         uint8   hashVersion;
         bytes32 thumbnailHash;    // keccak256(thumbnail bytes), or 0 if none
+        bytes32 tilesHash;        // keccak256(abi.encodePacked(uint64[] tiles)), or 0 if none
         uint256 nonce;            // random, unordered (G12)
         uint256 deadline;
     }
 
     Record[] internal records;                               // id = index + 1
-    mapping(bytes32 => uint32[]) internal buckets;
+    mapping(bytes32 => uint64[]) internal buckets;           // entry = (uint64(id) << 8) | tileIndex; tileIndex 0 = full hash
+    mapping(uint32 => uint64[]) internal tileHashes;         // tile i (1-based) = tileHashes[id][i - 1]
     mapping(address => uint32[]) internal creatorRecords;    // G1
     mapping(address => mapping(uint256 => bool)) public usedNonce;
     mapping(bytes32 => bool) public usedCommitKey;           // key = keccak256(abi.encode(creator, fileCommit))
@@ -189,27 +199,31 @@ contract OrigoRegistry is EIP712, Ownable {
     mapping(address => address) public labelAttester;
 
     event Registered(uint32 indexed id, address indexed creator, uint64 pHash, bytes32 fileCommit,
-                     Source source, bytes thumbnail);        // thumbnail may be empty
-    event Linked(uint32 indexed childId, uint32 indexed parentId, uint8 distance);
+                     Source source, uint8 tileCount, bytes thumbnail);   // thumbnail may be empty
+    event Linked(uint32 indexed childId, uint32 indexed parentId, uint8 parentTileIndex, uint8 distance);
     event Attested(address indexed creator, address indexed attester, string label);
 
-    function register(Registration calldata r, bytes calldata creatorSig, bytes calldata thumbnail)
+    function register(Registration calldata r, bytes calldata creatorSig, bytes calldata thumbnail, uint64[] calldata tiles)
         external returns (uint32 id);
     // Checks: signature recovers creator; deadline >= now; nonce unused; hashVersion == HASH_VERSION;
     // popcount(pHash) in [8, 56]; width, height > 0; source in {0, 1}; fileCommit != 0;
     // (creator, fileCommit) not used before. Uniqueness is per creator, NOT global, so a front-runner who
     // copies a pending fileCommit cannot block the honest registration (G2).
-    // thumbnail.length <= 4096 and keccak256(thumbnail) == r.thumbnailHash (or both empty / zero).
+    // thumbnail.length <= 4096 and keccak256(thumbnail) == r.thumbnailHash (or both empty / zero);
+    // tiles.length <= MAX_TILES (48) and keccak256(abi.encodePacked(tiles)) == r.tilesHash (or both empty / zero).
+    // Every tile is stored; only non-degenerate tiles are indexed in the buckets.
 
-    function linkDerivative(uint32 childId, uint32 parentId) external;
-    // Permissionless. parent registered earlier (lower id); hamming <= LINK_DISTANCE; only if parentId == 0.
+    function linkDerivative(uint32 childId, uint32 parentId, uint8 parentTileIndex) external;
+    // Permissionless. parent registered earlier (lower id); hamming(child.pHash, parent hash at tile index) <= LINK_DISTANCE;
+    // only if child.parentId == 0. parentTileIndex 0 = parent's full hash, so cropped copies can be linked too.
 
     function findMatches(uint64 h, uint8 maxDistance, uint8 probeRadius, uint256 cursor, uint256 maxCandidates)
-        external view returns (uint32[] memory ids, uint8[] memory distances, uint256 nextCursor);
+        external view returns (uint32[] memory ids, uint8[] memory tileIndexes, uint8[] memory distances, uint256 nextCursor);
 
     function getRecord(uint32 id) external view returns (Record memory);
     function getRecords(uint32[] calldata ids) external view returns (Record[] memory);
     function recordCount() external view returns (uint256);
+    function getTiles(uint32 id) external view returns (uint64[] memory);
     function recordsOf(address creator, uint256 offset, uint256 limit) external view returns (uint32[] memory);
 
     function attest(address creator, string calldata label) external;   // onlyAttester
@@ -292,7 +306,6 @@ Records registered within 60 seconds of each other get a "contested" flag. Never
 
 ## 12. Stretch designs (only after the MVP is done)
 
-- **Tiles for crops (G24):** 9 overlapping tiles (50% size, 25% stride) stored in the same buckets with a tile flag. The query's full hash is compared against tile hashes.
 - **Deposit and challenge (G9, G26):** refundable deposit per registration; attesters resolve disputes on-chain.
 - **Sponsored gas (G5):** Alchemy or Pimlico gas policy.
 - **Envio HyperIndex:** public feed of recent registrations.

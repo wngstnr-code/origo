@@ -4,19 +4,20 @@ Read this first every session. Update it at the end of every session. Keep it sh
 
 ## Current status
 
-- **Phase:** Day 1 done. Contract deployed and verified on testnet; end-to-end smoke test passed (register f01, WhatsApp-like copy found at distance 0).
+- **Phase:** Contract feature-complete with opt-in tiles (49 tests). v2 deployed and verified on testnet; smoke test finds a 20% crop. Next: contract freeze review, then frontend. Mainnet only after the frontend is safe.
 - **Team:** solo (the project owner). **Hosting:** Vercel (static only).
 - **Last updated:** 2026-10-09
 - **Deadline:** Wed Oct 14, 10:59 WIB (Oct 13, 11:59 PM ET). Internal target: Tue Oct 13, 22:00 WIB.
 - **Repo:** https://github.com/wngstnr-code/origo (public). **App:** https://origo-monad.vercel.app
 - **Deployer:** `0x7776BE3f1fdd370097Ee8FaD3A642f04eC9f4Ed1` (key only in local `.env`).
-- **Next action:** Day 2 (web app: Mera onboarding, Register, Verify with manual crop).
+- **Next action:** final contract review and freeze, then Day 2 (web app: Mera onboarding, Register with crop protection, Verify with manual crop).
 
 ## Deployments
 
 | Network | Contract | Address | Tx / block | Date |
 | --- | --- | --- | --- | --- |
-| Monad testnet (10143) | OrigoRegistry | [`0xEe00BC6a082914b5d5455624a3727dEE1B3c78F6`](https://testnet.monadvision.com/address/0xEe00BC6a082914b5d5455624a3727dEE1B3c78F6), verified on Sourcify (exact match). Dev only, testnet can reset | deploy tx `0x52eccb798eebd10c175d61a06ed2b5a211743470df5df29cc2e96348792c4bca`, block 69472733 | 2026-10-09 |
+| Monad testnet (10143) | OrigoRegistry v2 (tiles) | [`0x438a903afa6be86dcab7F013cCdB438Bf44c3488`](https://testnet.monadvision.com/address/0x438a903afa6be86dcab7F013cCdB438Bf44c3488), verified on Sourcify (exact match). Dev only, testnet can reset | deploy tx `0x2ca2c96a6de35d7b5d0883f9298292ea5dd38c8e366fc38e532968065381084b`, block 69475101 | 2026-10-09 |
+| Monad testnet (10143) | OrigoRegistry v1 (superseded, no tiles) | `0xEe00BC6a082914b5d5455624a3727dEE1B3c78F6` | block 69472733 | 2026-10-09 |
 | Monad mainnet (143) | OrigoRegistry | not deployed (canonical for submission) | | |
 | Web app (Vercel) | project `origo-app` | https://origo-monad.vercel.app (passkey rpId, never change). Auto-deploys from GitHub `main` | scaffold page live | 2026-10-09 |
 
@@ -24,10 +25,12 @@ Read this first every session. Update it at the end of every session. Keep it sh
 
 | Metric | Value | How measured |
 | --- | --- | --- |
-| Gas per `register` | about 424k (no thumbnail), about 525k (4 KB thumbnail) | `forge test --gas-report` |
-| Gas per `findMatches` page (256 candidates, 10k-entry bucket) | about 910k | Foundry test |
+| Gas per `register` | 425k (no tiles), 526k (4 KB thumbnail), 7.74M (39 tiles), 7.84M (39 tiles + thumbnail) | Foundry, fresh state |
+| Cost of `register` with 39 tiles at 100 gwei | about 0.77 MON used; about 1 MON charged with the 15% gas-limit margin | testnet smoke |
+| Gas per `findMatches` page (256 candidates, 10k-entry bucket) | about 1.01M | Foundry test |
 | Testnet `register` confirmation time | 1.1 s (send to receipt) | `smoke-testnet.mjs` |
-| Testnet gas charged for `register` | 568,162 = estimate x 1.15 (Monad charges the gas limit) | `smoke-testnet.mjs` |
+| Testnet gas charged for `register` | 568,162 without tiles; 9,981,958 with 39 tiles (= estimate x 1.15; Monad charges the gas limit) | `smoke-testnet.mjs` |
+| Testnet smoke v2 | WhatsApp-like copy found at distance 0 (tile 0); 20% center crop found at distance 0 via tile 14 | `smoke-testnet.mjs` |
 | `MATCH_DISTANCE` | 7 (frozen); 8 to 11 = likely same, edited | `ROBUSTNESS.md` |
 | Copies found at <= 7 bits | 100% for compression, resize, WhatsApp x2, brightness, mirror, rotate, borders | `ROBUSTNESS.md` |
 | Closest different photos | 18 bits (0% false positives at <= 11) | `ROBUSTNESS.md` |
@@ -57,6 +60,8 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | Manual crop in Verify is a must-have | Chat screenshots: 0% found with auto trim, 100% with manual crop |
 | 2026-10-09 | Verify contracts on Sourcify (MonadVision) with `--verifier sourcify --verifier-url https://sourcify-api-monad.blockvision.org/` | No API key needed; owner requires verified contracts |
 | 2026-10-09 | `evm_version = "osaka"` pinned | solc 0.8.30 default; confirmed working on Monad testnet; pinning keeps verification reproducible |
+| 2026-10-09 | Finish and freeze the contract before the frontend; mainnet only after the frontend is safe | Owner decision: avoid redeploying mainnet after users register |
+| 2026-10-09 | Opt-in crop protection with 39 tiles (S3 layout) in the contract | Tiles experiment: crops of 10 to 30% go from 0 to 4% found to 93 to 96%, false positives stay 0% |
 | 2026-10-09 | Production domain `origo-monad.vercel.app` | `origo-app.vercel.app` was already taken by an unrelated site; owner chose this. It is the passkey rpId (G6) |
 | 2026-10-09 | Foundry deps as pinned git submodules; SDK built with `tsc` | Reproducible builds; tsup DTS fails on TypeScript 6 |
 
@@ -80,3 +85,4 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | GitHub repo created, Vercel project `origo-app` linked with domain `origo-monad.vercel.app`. Repo scaffolded: git, pnpm workspace, contracts (Foundry + OZ), `@origo/sdk` (constants, networks), `@origo/web` (Vite React, Vercel config), README, MIT license |
 | 2026-10-09 | Day 1: OrigoRegistry + 36 Foundry tests, SDK hash + index math + 36 vitest tests, 27 public-domain fixtures, robustness report. Cross-checked bucket key and cursor encoding between SDK and contract |
 | 2026-10-09 | Testnet deploy + Sourcify verification, end-to-end smoke test on testnet |
+| 2026-10-09 | Tiles experiment, opt-in crop protection in contract (49 tests) and SDK (43 tests), testnet v2 deploy + verification + smoke test |
