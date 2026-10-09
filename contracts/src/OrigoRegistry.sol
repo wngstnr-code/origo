@@ -17,6 +17,7 @@ contract OrigoRegistry is EIP712, Ownable2Step {
     uint8 public constant MAX_PROBE_RADIUS = 2;
     uint8 public constant MAX_TILES = 48;
     uint256 public constant MAX_PAGE = 1024;
+    uint256 public constant MAX_EARLIEST_PER_BUCKET = 32;
 
     bytes32 public constant REGISTRATION_TYPEHASH = keccak256(
         "Registration(uint64 pHash,bytes32 fileCommit,uint16 width,uint16 height,uint8 source,uint8 hashVersion,bytes32 thumbnailHash,bytes32 tilesHash,uint256 nonce,uint256 deadline)"
@@ -68,8 +69,10 @@ contract OrigoRegistry is EIP712, Ownable2Step {
     mapping(address => mapping(uint256 => bool)) public usedNonce;
     mapping(bytes32 => bool) public usedCommitKey;
     mapping(address => bool) public isAttester;
-    mapping(address => string) public creatorLabel;
-    mapping(address => address) public labelAttester;
+    /// @notice Label per (creator, attester). Each attester controls only its own labels.
+    mapping(address => mapping(address => string)) public labelOf;
+    address[] internal attesterList;
+    mapping(address => bool) internal everAttester;
 
     event Registered(
         uint32 indexed id, address indexed creator, uint64 pHash,
@@ -98,6 +101,7 @@ contract OrigoRegistry is EIP712, Ownable2Step {
     error TooManyTiles();
     error TilesHashMismatch();
     error InvalidCursor();
+    error PerBucketTooLarge();
     error TooManyRecords();
 
     constructor() EIP712("Origo", "1") Ownable(msg.sender) {}
@@ -290,6 +294,40 @@ contract OrigoRegistry is EIP712, Ownable2Step {
         return (w.ids, w.tileIndexes, w.distances, nextCursor);
     }
 
+    /// @notice Earliest-first search: examines only the first `perBucket` entries (the oldest) of every
+    /// probe bucket. Buckets are append-only, so entries registered later (including flooding) can never
+    /// push an earlier record out of this window.
+    /// @param perBucket Entries examined per bucket, at most MAX_EARLIEST_PER_BUCKET.
+    /// @return ids Matching record ids (may contain duplicates across buckets).
+    /// @return tileIndexes Matching tile index per id (0 = the full hash).
+    /// @return distances Hamming distance for each match.
+    /// @return complete True if no bucket had more than `perBucket` entries, so the result is the full answer.
+    function findEarliest(uint64 h, uint8 maxDistance, uint8 probeRadius, uint256 perBucket)
+        external
+        view
+        returns (uint32[] memory ids, uint8[] memory tileIndexes, uint8[] memory distances, bool complete)
+    {
+        if (probeRadius > MAX_PROBE_RADIUS) revert RadiusTooLarge();
+        if (perBucket == 0 || perBucket > MAX_EARLIEST_PER_BUCKET) revert PerBucketTooLarge();
+        uint256 probeCount = probeRadius == 0 ? 1 : (probeRadius == 1 ? 17 : 137);
+
+        Walk memory w;
+        uint256 cap = 4 * probeCount * perBucket;
+        w.ids = new uint32[](cap);
+        w.tileIndexes = new uint8[](cap);
+        w.distances = new uint8[](cap);
+        complete = true;
+        for (w.seg = 0; w.seg < 4; w.seg++) {
+            for (w.probe = 0; w.probe < probeCount; w.probe++) {
+                w.offset = 0;
+                w.examined = 0;
+                if (!_scanBucket(w, h, maxDistance, perBucket)) complete = false;
+            }
+        }
+        _trim(w.ids, w.tileIndexes, w.distances, w.found);
+        return (w.ids, w.tileIndexes, w.distances, complete);
+    }
+
     struct Walk {
         uint32[] ids;
         uint8[] tileIndexes;
@@ -436,21 +474,59 @@ contract OrigoRegistry is EIP712, Ownable2Step {
     // Attestation
     // ------------------------------------------------------------------
 
-    /// @notice Sets a label for a creator. Only attesters. An empty label revokes it.
+    /// @notice Sets the caller's own label for a creator. Only attesters. An empty label revokes it.
+    /// An attester can never change another attester's label.
     function attest(address creator, string calldata label) external {
         if (!isAttester[msg.sender]) revert NotAttester();
-        creatorLabel[creator] = label;
-        if (bytes(label).length == 0) {
-            delete labelAttester[creator];
-        } else {
-            labelAttester[creator] = msg.sender;
-        }
+        labelOf[creator][msg.sender] = label;
         emit Attested(creator, msg.sender, label);
     }
 
-    /// @notice Grants or revokes attester rights. Only owner.
+    /// @notice Grants or revokes attester rights. Only owner. Labels of revoked attesters stay stored
+    /// but are no longer returned by labelsOf.
     function setAttester(address attester, bool allowed) external onlyOwner {
         isAttester[attester] = allowed;
+        if (allowed && !everAttester[attester]) {
+            everAttester[attester] = true;
+            attesterList.push(attester);
+        }
         emit AttesterSet(attester, allowed);
+    }
+
+    /// @notice Currently active attesters.
+    function attesters() external view returns (address[] memory out) {
+        uint256 n = attesterList.length;
+        uint256 count;
+        for (uint256 i = 0; i < n; i++) {
+            if (isAttester[attesterList[i]]) count++;
+        }
+        out = new address[](count);
+        uint256 k;
+        for (uint256 i = 0; i < n; i++) {
+            address a = attesterList[i];
+            if (isAttester[a]) out[k++] = a;
+        }
+    }
+
+    /// @notice Non-empty labels for a creator from currently active attesters.
+    function labelsOf(address creator) external view returns (address[] memory by, string[] memory labels) {
+        uint256 n = attesterList.length;
+        uint256 count;
+        for (uint256 i = 0; i < n; i++) {
+            address a = attesterList[i];
+            if (isAttester[a] && bytes(labelOf[creator][a]).length != 0) count++;
+        }
+        by = new address[](count);
+        labels = new string[](count);
+        uint256 k;
+        for (uint256 i = 0; i < n; i++) {
+            address a = attesterList[i];
+            string storage l = labelOf[creator][a];
+            if (isAttester[a] && bytes(l).length != 0) {
+                by[k] = a;
+                labels[k] = l;
+                k++;
+            }
+        }
     }
 }
