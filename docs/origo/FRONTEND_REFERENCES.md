@@ -2,7 +2,22 @@
 
 Open-source projects with live deployments, checked on 2026-10-09 (GitHub API for activity and license, HTTP 200 on every live link). Use them for **design and UX patterns**. Only copy code from MIT, Apache-2.0, or BSD projects, with attribution; GPL and custom-licensed projects are reference only (our repo is MIT).
 
-## Landing page
+## Primary: finished, lesser-known products (owner request)
+
+Real products (not templates or libraries), not big brands, open source, with a live deployment. Each one was opened and looked at on 2026-10-09.
+
+| Product | Live | Code | What it looks like | What to take |
+| --- | --- | --- | --- | --- |
+| LetsSeal (file authenticity, closest to Origo) | https://letsseal.org, verify page https://letsseal.org/verify, app https://app.letsseal.org | https://github.com/letsseal/letsseal (373 stars, Apache-2.0, active) | Light, serif editorial headline, calm and trustworthy | Landing tone; the verify page: drop zone with "the file never leaves your control", a second input for a fingerprint or proof link, "How verification works" cards |
+| TrueShot (camera photo authenticity) | https://true-shot.vercel.app | https://github.com/YuriTheCoder/TrueShot (14 stars, MIT) | Dark, green accent, "Prove your photos are real." headline, terminal showing verification steps | A live "verification log" panel showing each on-chain step |
+| PicPeak (client galleries for photographers) | https://www.picpeak.app | https://github.com/PicPeak/picpeak (330 stars, MIT, active) | Calm green, gallery card with monospace metadata labels | Photo record cards with monospace metadata (block, id, distance), photographer-friendly tone |
+| BUYIN (consumer web3 finance) | https://www.buyin.money | https://github.com/ethnv/BUYIN (50 stars, MIT, active) | Dark, neon yellow-green, bold monospace type, transaction form in the hero | Showing the product action directly in the hero |
+
+Style options offered to the owner: A editorial trust (LetsSeal + PicPeak), B forensic dark (TrueShot), C crypto bold (BUYIN). Recommendation: A as the base plus the TrueShot-style live verification log.
+
+## Secondary: libraries and well-known apps
+
+### Landing page
 
 | Project | Live | Code | License | What to take |
 | --- | --- | --- | --- | --- |
@@ -12,7 +27,7 @@ Open-source projects with live deployments, checked on 2026-10-09 (GitHub API fo
 | Precedent | https://precedent.dev | https://github.com/steven-tey/precedent (last push 2024) | MIT | Minimal one-page structure, subtle motion |
 | shadcn/ui | https://ui.shadcn.com | https://github.com/shadcn-ui/ui (125k stars) | MIT | Base component system (buttons, dialogs, tabs, toasts) |
 
-## App: verification and image UX (closest to Origo)
+### App: verification and image UX
 
 | Project | Live | Code | License | What to take |
 | --- | --- | --- | --- | --- |
@@ -20,7 +35,7 @@ Open-source projects with live deployments, checked on 2026-10-09 (GitHub API fo
 | Squoosh | https://squoosh.app | https://github.com/GoogleChromeLabs/squoosh (26k stars, active) | Apache-2.0 | Fully client-side image processing, big friendly drop zone, sample images to try, side-by-side compare slider (query vs registered thumbnail) |
 | Sourcify | https://sourcify.dev | https://github.com/argotorg/sourcify (active) | MIT | Verification status language and badges ("exact match", "partial match"), a pattern for our evidence ranking |
 
-## App: web3 without friction
+### App: web3 without friction
 
 | Project | Live | Code | License | What to take |
 | --- | --- | --- | --- | --- |
