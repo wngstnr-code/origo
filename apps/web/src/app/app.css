@@ -1193,6 +1193,17 @@
   }
 }
 
+/* three tabs and the logo do not fit next to the word on a phone */
+@media (max-width: 480px) {
+  .wordmark-text {
+    display: none;
+  }
+
+  .nav nav {
+    gap: 16px;
+  }
+}
+
 .wallet-fallback {
   margin-top: 14px;
 }

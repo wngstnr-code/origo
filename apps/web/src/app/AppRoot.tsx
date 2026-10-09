@@ -20,7 +20,7 @@ function AppNav({ path }: { path: string }) {
       <div className="wrap nav-inner">
         <a className="wordmark" href="/" onClick={onLinkClick} aria-label="Origo home">
           <OwlMark size={44} />
-          origo
+          <span className="wordmark-text">origo</span>
         </a>
         <nav aria-label="App">
           {TABS.map((t) => (
