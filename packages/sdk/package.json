@@ -1,0 +1,39 @@
+{
+  "name": "@origo/sdk",
+  "version": "0.1.0",
+  "description": "Origo SDK: deterministic perceptual hashing, on-chain similarity search, and passkey-derived creator keys for the Origo registry on Monad.",
+  "license": "MIT",
+  "author": "Wangsit Nursyahada",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@category-labs/mera": "0.2.0",
+    "@noble/hashes": "^2.4.0",
+    "@scure/bip32": "^2.4.0",
+    "@scure/bip39": "^2.4.0",
+    "viem": "2.57.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "sharp": "^0.35.5",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}
