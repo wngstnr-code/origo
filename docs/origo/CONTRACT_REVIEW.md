@@ -2,7 +2,7 @@
 
 Review of `contracts/src/OrigoRegistry.sol` on 2026-10-09, before freezing the contract for the frontend and the mainnet deploy. Manual line-by-line review plus the Foundry suite (49 tests, two 512-run fuzz tests).
 
-**Verdict:** no critical or high issues. Funds are never held by the contract, records cannot be forged or edited, and every registration requires a valid creator signature. Four changes were made; the remaining items are accepted and documented.
+**Verdict:** no critical or high issues. Funds are never held by the contract, records cannot be forged or edited, and every registration requires a valid creator signature. Six changes were made (R5 and R6 in a second pass on the same day); the remaining items are accepted and documented.
 
 ## Changes made
 
@@ -12,6 +12,8 @@ Review of `contracts/src/OrigoRegistry.sol` on 2026-10-09, before freezing the c
 | R2 | A malformed `findMatches` cursor (wrong radius, segment >= 4, or missing marker bit) could walk from an unintended position or revert with an arithmetic panic | Low | Explicit `InvalidCursor` check: low bit set, segment < 4, probe index < probe count for the given radius |
 | R3 | `id = uint32(records.length)` would silently truncate after 2^32 records | Low (theoretical) | `TooManyRecords` revert before the push |
 | R4 | Single-step ownership: a mistyped `transferOwnership` loses attester management forever | Low | `Ownable2Step` (`transferOwnership` + `acceptOwnership`) |
+| R5 | Bucket flooding (was A1): cheap junk entries could push an original record deep into the paginated walk | Medium | `findEarliest`: scans only the oldest `perBucket` entries of every probe bucket. Buckets are append-only, so a later flood can never hide an earlier record. Test: with 300 junk entries the first `findMatches` page misses the original, `findEarliest` returns it in one call |
+| R6 | Attester overwrite (was A2): any attester could overwrite another attester's label | Low | Per-attester labels `labelOf[creator][attester]`; `labelsOf` returns only active attesters; revoking an attester hides its labels |
 
 ## Checked and fine
 
@@ -27,7 +29,7 @@ Review of `contracts/src/OrigoRegistry.sol` on 2026-10-09, before freezing the c
 
 | # | Item | Why accepted |
 | --- | --- | --- |
-| A1 | **Bucket flooding cost.** An attacker can stuff a target's buckets with junk entries: about 100 entries per MON without tiles, about 245 per MON with tiles (about 40 to 100 MON for 10,000 entries at the minimum base fee). Search stays correct (no false negatives) but needs more pages | Every junk record is public and attributed to the attacker's address. The SDK streams pages and shows results as they arrive. A refundable deposit is the known fix (stretch) |
-| A2 | **Attester overwrite.** Any attester can overwrite another attester's label for a creator | Attesters are owner-approved in this version (G23). The label and `labelAttester` are always shown together |
+| A1 | **Resolved by R5.** Remaining: a flood placed *before* a photo exists would require predicting its hash, and later floods only slow down finding newer copies. Original note: bucket flooding cost. An attacker can stuff a target's buckets with junk entries: about 100 entries per MON without tiles, about 245 per MON with tiles (about 40 to 100 MON for 10,000 entries at the minimum base fee). Search stays correct (no false negatives) but needs more pages | Every junk record is public and attributed to the attacker's address. The SDK streams pages and shows results as they arrive. A refundable deposit is the known fix (stretch) |
+| A2 | **Resolved by R6.** Original note: attester overwrite. Any attester can overwrite another attester's label for a creator | Attesters are owner-approved in this version (G23). The label and `labelAttester` are always shown together |
 | A3 | **Self-reported fields** (`source`, `width`, `height`) | Only tie-breakers in ranking (G3, G25); dimensions are validated by the ownership proof |
 | A4 | **Degenerate tiles are stored but not indexed** | Intended: low-information windows (for example sky) would only add noise |

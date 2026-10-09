@@ -141,6 +141,7 @@ That gives 9 + 9 + 3 + 3 + 3 + 3 + 9 = 39 tiles. Verification is unchanged: the 
   - radius 2 also adds `v ^ (1 << i) ^ (1 << j)` for i = 0..14, j = i+1..15, in that nested order (137 probes)
 
   Segments are walked in order 0, 1, 2, 3, all probes of a segment before the next segment.
+- **Earliest-first search (flooding defense, CONTRACT_REVIEW R5):** `findEarliest(h, maxDistance, probeRadius, perBucket)` examines only the first `perBucket` (at most 32) entries of every probe bucket and returns `complete = true` when no bucket was longer. Buckets are append-only, so entries added later, including a flood, can never push an earlier record out of that window. Verify calls it first for every variant (radius 1 or 2, perBucket 8); only if `complete` is false does it continue with the paginated walk below to find newer records. Measured: radius 1, perBucket 8 costs about 361k gas per call on a small registry; the worst case (68 full buckets) is 544 entries, about 5.5M gas, still in the fast pool.
 - **Search** is paginated (G9). The state is `(segment, probeIndex, offsetInBucket)`. Cursor encoding: `cursor = (segment << 160) | (probeIndex << 96) | (offset << 1) | 1`. An input cursor of 0 means "start at (0, 0, 0)". A returned `nextCursor` of 0 means "done". `maxCandidates` counts bucket entries examined (not matches). Each examined entry loads the record's pHash and is returned only if its Hamming distance is at most `maxDistance`. Duplicates across probes or segments are possible; the client de-duplicates by id.
 - **Gas estimate** (pages of 128 slots: 8,000 load + 2,800 write + 17,000 growth on the first touch): record (2 to 3 slots, mostly one page) + 4 bucket appends on random pages + optional thumbnail calldata (about 64k). Measured (fresh state): **425k gas** without tiles, **526k** with a 4 KB thumbnail, **7.74M** with 39 tiles, **7.84M** with 39 tiles and a thumbnail (under the 30M transaction limit). At the 100 gwei minimum base fee that is about 0.04 MON without tiles and about 0.8 MON with crop protection. A `findMatches` page of 256 candidates at radius 1 over a 10,000-entry bucket costs about 1.01M gas, well under the 8.1M fast `eth_call` pool. `findMatches` caps a page at `MAX_PAGE = 1024` entries.
 
@@ -192,8 +193,8 @@ contract OrigoRegistry is EIP712, Ownable2Step {
     mapping(address => mapping(uint256 => bool)) public usedNonce;
     mapping(bytes32 => bool) public usedCommitKey;           // key = keccak256(abi.encode(creator, fileCommit))
     mapping(address => bool) public isAttester;
-    mapping(address => string) public creatorLabel;
-    mapping(address => address) public labelAttester;
+    mapping(address => mapping(address => string)) public labelOf;   // creator => attester => label (R6)
+    address[] internal attesterList;                                  // every address ever granted
 
     event Registered(uint32 indexed id, address indexed creator, uint64 pHash, bytes32 fileCommit,
                      Source source, uint8 tileCount, bytes thumbnail);   // thumbnail may be empty
@@ -222,8 +223,13 @@ contract OrigoRegistry is EIP712, Ownable2Step {
     function getTiles(uint32 id) external view returns (uint64[] memory);
     function recordsOf(address creator, uint256 offset, uint256 limit) external view returns (uint32[] memory);
 
-    function attest(address creator, string calldata label) external;   // onlyAttester
+    function findEarliest(uint64 h, uint8 maxDistance, uint8 probeRadius, uint256 perBucket)
+        external view returns (uint32[] memory ids, uint8[] memory tileIndexes, uint8[] memory distances, bool complete);
+
+    function attest(address creator, string calldata label) external;   // onlyAttester; sets only the caller's own label
     function setAttester(address attester, bool allowed) external;      // onlyOwner
+    function attesters() external view returns (address[] memory);     // active attesters
+    function labelsOf(address creator) external view returns (address[] memory by, string[] memory labels); // active, non-empty
 }
 ```
 
@@ -263,9 +269,9 @@ passkey (Face ID / Touch ID)
 
 **Verify**
 1. Decode, then optional manual crop, then trim, then 8 orientation hashes.
-2. For each variant, page through `findMatches(h, 7, 1, cursor, 256)`. Merge results, keeping the minimum distance per id.
+2. For each variant, call `findEarliest(h, 7, 1, 8)`; if it is not `complete`, also page through `findMatches(h, 7, 1, cursor, 256)` and show newer matches as they arrive. Merge results, keeping the minimum distance per id.
 3. If nothing is found, run a low-confidence pass with radius 2 and max distance 11.
-4. `getRecords(ids)`, `creatorLabel(creator)`. For records with `hasThumbnail`, fetch the `Registered` log with `fromBlock = toBlock = registeredBlock`.
+4. `getRecords(ids)`, `labelsOf(creator)`. For records with `hasThumbnail`, fetch the `Registered` log with `fromBlock = toBlock = registeredBlock`.
 5. Rank (section 10) and render cards with thumbnails side by side with the query image.
 
 **Prove ownership (reveal)**
