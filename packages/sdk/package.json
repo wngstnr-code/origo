@@ -21,7 +21,8 @@
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "robustness": "pnpm build && node scripts/robustness.mjs"
   },
   "dependencies": {
     "@category-labs/mera": "0.2.0",
