@@ -1,12 +1,45 @@
-import { type ReactNode, useEffect, useState } from "react";
-import { EXPLORER, REGISTRY } from "../lib/registry";
-import { CropDemo, LatestRecord, WhatsAppDemo } from "./demos";
+import { type ReactNode, Suspense, lazy, useEffect, useRef, useState } from "react";
+import { TESTNET_FAUCET } from "@origo/sdk";
+import { EXPLORER, REGISTRY } from "../lib/chain";
+import { OwlMark } from "./Logo";
 import { Owl } from "./Owl";
 import { PlanetCoral, PlanetCraters, PlanetRing, Shore, Stars } from "./Space";
 import "./landing.css";
 
+// The demos pull in the hashing code and viem, so they load only when their section comes near.
+const WhatsAppDemo = lazy(() => import("./demos").then((m) => ({ default: m.WhatsAppDemo })));
+const CropDemo = lazy(() => import("./demos").then((m) => ({ default: m.CropDemo })));
+const LatestRecord = lazy(() => import("./demos").then((m) => ({ default: m.LatestRecord })));
+
+function WhenNear({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setNear(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="when-near">
+      {near && <Suspense fallback={null}>{children}</Suspense>}
+    </div>
+  );
+}
+
 const GITHUB = "https://github.com/wngstnr-code/origo";
 const CONTRACT = `${EXPLORER}/address/${REGISTRY}`;
+const APP = "/app";
+const DOCS = `${GITHUB}/blob/main/docs/origo`;
 
 function Nav() {
   const [solid, setSolid] = useState(false);
@@ -20,7 +53,7 @@ function Nav() {
     <header className={`nav${solid ? " solid" : ""}`}>
       <div className="wrap nav-inner">
         <a className="wordmark" href="#top" aria-label="Origo home">
-          <span className="wordmark-dot" aria-hidden="true" />
+          <OwlMark size={44} />
           origo
         </a>
         <nav aria-label="Main">
@@ -31,6 +64,9 @@ function Nav() {
           </a>
           <a href={GITHUB} target="_blank" rel="noreferrer">
             GitHub
+          </a>
+          <a className="button primary nav-cta" href={APP}>
+            Launch app
           </a>
         </nav>
       </div>
@@ -51,14 +87,6 @@ function Hero() {
           Origo writes a photo's visual fingerprint to Monad. When a copy shows up again, compressed by WhatsApp,
           screenshotted, mirrored or cropped, it still leads back to the first person who registered it.
         </p>
-        <div className="actions">
-          <a className="button primary" href="#how">
-            See it work
-          </a>
-          <a className="button secondary" href={CONTRACT} target="_blank" rel="noreferrer">
-            Read the contract
-          </a>
-        </div>
       </div>
       <Owl className="hero-owl" />
       <Shore />
@@ -101,17 +129,89 @@ const NUMBERS = [
   { big: "0 / 702", text: "pairs of different photos mistaken for each other" },
 ];
 
+const FOOTER_LINKS: ReadonlyArray<{ title: string; links: ReadonlyArray<[string, string]> }> = [
+  {
+    title: "Origo",
+    links: [
+      ["Launch app", APP],
+      ["How it works", "#how"],
+      ["Numbers", "#numbers"],
+    ],
+  },
+  {
+    title: "Build",
+    links: [
+      ["Source code", GITHUB],
+      ["Architecture", `${DOCS}/ARCHITECTURE.md`],
+      ["Robustness report", `${DOCS}/ROBUSTNESS.md`],
+      ["Known gaps", `${DOCS}/GAPS.md`],
+    ],
+  },
+  {
+    title: "Monad",
+    links: [
+      ["Registry contract", CONTRACT],
+      ["Testnet faucet", TESTNET_FAUCET],
+      ["Monad", "https://www.monad.xyz"],
+    ],
+  },
+];
+
+function Footer() {
+  return (
+    <footer className="footer">
+      <svg className="footer-edge" viewBox="0 0 1440 140" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 140 L0 70 C260 10 520 120 820 80 C1060 48 1260 0 1440 30 L1440 140 Z" fill="var(--space-2)" />
+        <path d="M0 140 L0 104 C300 60 560 140 860 112 C1100 90 1280 50 1440 70 L1440 140 Z" fill="var(--space)" />
+      </svg>
+      <div className="footer-body">
+        <Stars />
+        <div className="wrap footer-grid">
+          <div className="footer-brand">
+            <OwlMark size={64} />
+            <p>Who took this photo first? A public answer, written to Monad.</p>
+          </div>
+          {FOOTER_LINKS.map((col) => (
+            <nav key={col.title} aria-label={col.title}>
+              <h3>{col.title}</h3>
+              <ul>
+                {col.links.map(([label, href]) => (
+                  <li key={label}>
+                    <a href={href} {...(href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}>
+                      {label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
+        </div>
+        <div className="wrap footer-bottom">
+          <p>© 2026 Wangsit Nursyahada. MIT License. Built for the Monad Metropolis Hackathon.</p>
+          <p>
+            Demo photo:{" "}
+            <a href="https://commons.wikimedia.org/wiki/File:Andri_Permana_Banjir.jpg" target="_blank" rel="noreferrer">
+              Andri Permana Banjir.jpg
+            </a>
+            , Wikimedia Commons, CC0.
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 export function Landing() {
   return (
     <>
       <Nav />
-      <main>
+      <main id="main">
         <Hero />
 
         <Row
           id="how"
           title="It survives the group chat"
-          visual={<WhatsAppDemo />}
+          visual={<WhenNear><WhatsAppDemo /></WhenNear>}
         >
           <p>
             Every app squeezes photos before sending them on. The bytes change, so a file hash breaks. Origo hashes
@@ -123,7 +223,7 @@ export function Landing() {
           </p>
         </Row>
 
-        <Row title="Cropped? Still found" visual={<CropDemo />} flip tint>
+        <Row title="Cropped? Still found" visual={<WhenNear><CropDemo /></WhenNear>} flip tint>
           <p>
             Cutting off the edges changes the whole-photo fingerprint too much. So at registration Origo also stores 39
             fingerprints of smaller windows of the photo. A crop lands close to one of them.
@@ -131,7 +231,7 @@ export function Landing() {
           <p>The box shows the window that caught this crop.</p>
         </Row>
 
-        <Row title="Written to Monad, read by anyone" visual={<LatestRecord />}>
+        <Row title="Written to Monad, read by anyone" visual={<WhenNear><LatestRecord /></WhenNear>}>
           <p>
             The fingerprint, the creator's key and the time go into a public registry contract. Registering confirms in
             about a second. Searching is a free contract read, so there is no Origo server to trust or to go down.
@@ -157,7 +257,7 @@ export function Landing() {
             </ol>
             <p className="numbers-note">
               Full results in{" "}
-              <a href={`${GITHUB}/blob/main/docs/origo/ROBUSTNESS.md`} target="_blank" rel="noreferrer">
+              <a href={`${DOCS}/ROBUSTNESS.md`} target="_blank" rel="noreferrer">
                 ROBUSTNESS.md
               </a>
               . Weak spots are listed too: corner crops and heavy text overlays.
@@ -167,7 +267,10 @@ export function Landing() {
 
         <section className="closing">
           <div className="wrap closing-inner">
-            <Owl className="closing-owl" />
+            <div className="closing-porthole">
+              <Stars />
+              <Owl className="closing-owl" />
+            </div>
             <h2>No server. No sign-up. Just Monad.</h2>
             <p>
               The site is static files, the search runs on a public contract, and the code is open. If Origo disappears
@@ -184,20 +287,7 @@ export function Landing() {
           </div>
         </section>
       </main>
-      <footer className="footer">
-        <div className="wrap footer-inner">
-          <p>
-            Origo, built for the Monad Metropolis Hackathon. MIT licensed.
-          </p>
-          <p className="small">
-            Demo photo:{" "}
-            <a href="https://commons.wikimedia.org/wiki/File:Andri_Permana_Banjir.jpg" target="_blank" rel="noreferrer">
-              Andri Permana Banjir.jpg
-            </a>
-            , Wikimedia Commons, CC0.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </>
   );
 }
