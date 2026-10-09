@@ -19,3 +19,4 @@ contracts/broadcast/*/31337/
 .DS_Store
 *.log
 .claude/settings.local.json
+.vercel
