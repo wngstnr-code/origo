@@ -23,8 +23,9 @@ It is being built for the **Monad Metropolis Hackathon**, Track 04 (Trust, Ident
    - No backend owned by us. Allowed: static frontend, smart contracts on Monad, public RPCs, and public/decentralized infrastructure (Envio, IPFS).
    - Commit history must cover the build window, so commit small and often.
    - Every contract deployment (testnet and mainnet) must be verified on Sourcify/MonadVision in the same step. Command in `docs/origo/ARCHITECTURE.md` section 4.
-5. Only commit or push when the project owner asks.
-6. **Split commits.** Never bundle unrelated work into one commit. Make one small commit per logical change (for example: contract, its tests, SDK module, UI page, docs), each building on its own where possible. Use Conventional Commits style: `feat(sdk): ...`, `fix(contracts): ...`, `docs: ...`, `chore: ...`, `test(...)`. Stage specific paths, never `git add -A` blindly.
+5. **UI must not look AI-generated.** Follow `docs/origo/DESIGN.md` (direction, tokens, "Never" list) and pass its review gate before calling any screen done.
+6. Only commit or push when the project owner asks.
+7. **Split commits.** Never bundle unrelated work into one commit. Make one small commit per logical change (for example: contract, its tests, SDK module, UI page, docs), each building on its own where possible. Use Conventional Commits style: `feat(sdk): ...`, `fix(contracts): ...`, `docs: ...`, `chore: ...`, `test(...)`. Stage specific paths, never `git add -A` blindly.
 
 ## Docs map
 
@@ -35,6 +36,7 @@ It is being built for the **Monad Metropolis Hackathon**, Track 04 (Trust, Ident
 | `docs/origo/ARCHITECTURE.md` | Technical spec: repo layout, hashing, contract interface, key derivation, data flows |
 | `docs/origo/GAPS.md` | Known gaps, blockers, and limitations with status. Check before designing anything new |
 | `docs/origo/CONTRACT_REVIEW.md` | Pre-freeze security review of the contract: changes made and accepted risks |
+| `docs/origo/DESIGN.md` | Design direction, tokens, anti-AI-slop rules, and the UI review gate |
 | `docs/origo/FRONTEND_REFERENCES.md` | Vetted open-source landing and app references with live links and licenses |
 | `docs/origo/BUILD_PLAN.md` | Day-by-day plan to the deadline, MVP vs stretch, submission checklist, demo video script |
 | `docs/hackathon.md` | Hackathon facts: tracks, rubric, bounties, rules, judges, resources |
