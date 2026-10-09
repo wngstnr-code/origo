@@ -132,7 +132,7 @@ Consequence: the manual crop tool in Verify is a must-have, not optional. Stretc
 JPEG decoders, chroma upsampling, ICC color management (Display P3 iPhone photos), and EXIF orientation can differ between Chrome, Safari, and Node (sharp).
 **Plan:**
 - Our own resize removes the largest source of difference.
-- Use `colorSpaceConversion: "none"` and `imageOrientation: "from-image"`. In Node, decode without ICC conversion.
+- Use `imageOrientation: "from-image"` and keep the default sRGB color conversion on both sides: browsers convert to sRGB by default, and so does sharp in Node (the scripts that registered the fixtures). Using `colorSpaceConversion: "none"` in the browser only would make Display P3 photos hash differently from Node. (Changed 2026-10-09.)
 - Day 2 test: hash the same 10 files in Chrome, Safari, and Node and compare. Small differences (1 to 2 bits) are absorbed by the distance threshold. Larger ones are bugs.
 
 ### G15. HEIC in Chrome (Medium, resolve in code)
