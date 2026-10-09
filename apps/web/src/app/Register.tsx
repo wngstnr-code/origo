@@ -20,6 +20,7 @@ import {
   send as sendRegistration,
   sign,
 } from "../lib/register";
+import { saveOriginal } from "../lib/originals";
 import { onLinkClick } from "../router";
 import { BitGrid } from "../ui/BitGrid";
 import { type Match, searchRegistry } from "./search";
@@ -65,6 +66,7 @@ export function Register() {
   const [relay, setRelay] = useState<string | null>(null);
   const [relayError, setRelayError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [savedLocally, setSavedLocally] = useState(false);
   const balance = useBalance(account?.wallet.address, refresh);
 
   const pick = async (file: File | undefined, source: 0 | 1) => {
@@ -167,7 +169,14 @@ export function Register() {
     setSending(true);
     setSendError(null);
     try {
-      setDone(await sendRegistration(draft, account.walletClient));
+      const result = await sendRegistration(draft, account.walletClient);
+      setDone(result);
+      if (photo) {
+        await saveOriginal(result.id, photo.file).then(
+          () => setSavedLocally(true),
+          () => setSavedLocally(false),
+        );
+      }
       setRefresh((n) => n + 1);
     } catch (err) {
       setSendError(registerErrorMessage(err));
@@ -419,11 +428,19 @@ export function Register() {
                   </a>
                   , {(done.ms / 1000).toFixed(1)} s after you clicked.
                 </p>
-                <p className="hint">Keep the original file safe. It is the only thing that can prove the record is yours.</p>
+                <p className="hint">
+                  Keep the original file safe. It is the only thing that can prove the record is yours.
+                  {savedLocally && " A copy is also kept in this browser, but browsers can clear it."}
+                </p>
                 <div className="step-actions">
                   <a className="button primary small-button" href={`/app/record/${done.id}`} onClick={onLinkClick}>
                     Open record #{done.id}
                   </a>
+                  {photo && (
+                    <a className="button outline small-button" href={photo.url} download={photo.file.name || `origo-${done.id}.jpg`}>
+                      Save original
+                    </a>
+                  )}
                   <button type="button" className="link-button" onClick={reset}>
                     Register another photo
                   </button>

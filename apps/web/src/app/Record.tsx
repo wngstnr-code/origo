@@ -5,6 +5,7 @@ import { Owl } from "../landing/Owl";
 import { Shore, Stars } from "../landing/Space";
 import { CHAIN, EXPLORER } from "../lib/chain";
 import { blobToRGBA } from "../lib/image";
+import { loadOriginal } from "../lib/originals";
 import { REGISTRY, type RegistryRecord, publicClient, registryAbi, shortAddress } from "../lib/registry";
 import { onLinkClick } from "../router";
 import { BitGrid } from "../ui/BitGrid";
@@ -216,10 +217,21 @@ async function proveFile(file: File, r: RegistryRecord): Promise<Check[]> {
 function Prove({ id, record, onProved }: { id: number; record: RegistryRecord; onProved: () => void }) {
   const [state, setState] = useState<ProveState>({ kind: "idle" });
   const [dragging, setDragging] = useState(false);
+  const [saved, setSaved] = useState<File | undefined>();
+
+  // If this browser registered the photo, the original is still in IndexedDB.
+  useEffect(() => {
+    let live = true;
+    void loadOriginal(id).then((f) => live && setSaved(f));
+    return () => {
+      live = false;
+    };
+  }, [id]);
 
   const accept = async (file: File | undefined) => {
     if (!file) return;
     setState({ kind: "working" });
+    // A copy from IndexedDB is a File too, so the proof runs exactly the same way.
     try {
       const checks = await proveFile(file, record);
       if (checks.every((c) => c.ok)) {
@@ -272,6 +284,14 @@ function Prove({ id, record, onProved }: { id: number; record: RegistryRecord; o
           <span className="dropzone-title">Drop the original file</span>
           <span className="dropzone-sub">The one you registered, not a copy from a chat.</span>
         </label>
+        {saved && state.kind === "idle" && (
+          <p className="hint">
+            This browser kept the original when you registered it.{" "}
+            <button type="button" className="link-button" onClick={() => accept(saved)}>
+              Check with the saved copy
+            </button>
+          </p>
+        )}
         {state.kind === "working" && <p className="verdict-pending">Checking…</p>}
         {state.kind === "error" && <p className="notice warn-notice">{state.message}</p>}
         {state.kind === "done" && (
