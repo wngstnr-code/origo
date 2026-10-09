@@ -53,7 +53,7 @@ Origo never treats "first registrant" as the owner. It shows the strongest evide
 3. Attestations: accounts verified by an institution show a badge.
 
 Ranking order: proven ownership, then attested creator, then earliest registration. Self-reported fields (capture flag, resolution) are only tie-breakers and are labeled as such.
-4. Derivative linking: a later near-duplicate can be permissionlessly linked as "derived from #id", so it cannot pose as a new original.
+4. Earlier near-duplicates: every verification lists all earlier records within the threshold, so a later copy can never pose as a new original. This is computed at read time from the on-chain index, not stored as a permanent on-chain label (a permissionless label could be abused).
 5. Stake and on-chain challenges (stretch goal) make mass-registering stolen photos costly.
 
 ## Why Monad

@@ -31,13 +31,15 @@ Update the status here when an item changes.
 | G17 | Testnet can be reset | Medium | Resolved (spec) |
 | G18 | RPC rate limits | Low | Resolved (spec) |
 | G19 | Track 04 needs proof that other apps can build on Origo | Medium | Resolved (spec) + code |
-| G20 | Mirrored copies cannot be linked on-chain | Low | Accepted limitation |
+| G20 | Mirrored copies cannot be linked on-chain | Low | Moot: on-chain linking removed (CONTRACT_REVIEW R1) |
 | G21 | Perceptual hashes are not robust against deliberate adversarial attacks | Medium | Accepted limitation |
 | G22 | A thief who has the real original file has equal evidence | Low | Accepted limitation |
 | G23 | Attesters are centrally managed | Low | Accepted limitation |
 | G24 | Crops of 10% or more do not match without tiles | Medium | Resolved: opt-in crop protection (39 tiles), measured |
 | G28 | Tampering with signed fields makes ecrecover return a different creator | Low | Accepted (harmless) |
-| G29 | `findMatches` with an unbounded `maxCandidates` allocates memory proportional to the registry | Low | Resolved (SDK always pages with 256) |
+| G29 | `findMatches` with an unbounded `maxCandidates` allocates memory proportional to the registry | Low | Resolved (contract caps a page at 1024; SDK pages with 256) |
+| G30 | Bucket flooding costs only about 40 to 100 MON per 10,000 junk entries | Medium | Accepted (CONTRACT_REVIEW A1); deposit is stretch |
+| G31 | A permissionless set-once derivative link could mislabel an honest record | Medium | Resolved: `linkDerivative` removed (CONTRACT_REVIEW R1) |
 | G25 | `source = Capture` can be faked | Low | Accepted limitation |
 | G26 | Ownership proof is not recorded on-chain | Low | Accepted limitation |
 | G27 | On-chain thumbnails are permanent and public | Low | Resolved (spec): opt-in |

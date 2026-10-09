@@ -117,7 +117,6 @@ Floating point note: `Math.cos` may differ in the last bit between engines. That
 **Thresholds (frozen on 2026-10-09 from `ROBUSTNESS.md`, G16):**
 - `MATCH_DISTANCE = 7`: "same photo". Every compression, resize, brightness, mirror, rotation, and border case measured at most 4 bits.
 - 8 to 11, found with probe radius 2: "likely the same photo, edited or cropped". The closest pair of *different* photos measured 18 bits, even for 5 shots of the same flood scene, so this band is still safe.
-- `LINK_DISTANCE = 7`: on-chain limit for `linkDerivative`.
 
 **Tiles, "crop protection" (opt-in, G24, decided from `tiles-experiment.mjs`):** at registration, after border trim, hash 39 sub-windows of the trimmed content rect with `phash(img, { crop: rect, trim: false })`. Window list, in this exact order (tile index = position in this list + 1):
 - scale pairs `(sx, sy)`: `(0.9, 0.9)`, `(0.8, 0.8)`, `(0.9, 1)`, `(1, 0.9)`, `(0.8, 1)`, `(1, 0.8)`, `(0.7, 0.7)`
@@ -149,9 +148,8 @@ That gives 9 + 9 + 3 + 3 + 3 + 3 + 9 = 39 tiles. Verification is unchanged: the 
 
 ```solidity
 // Sketch. Names and types are the contract between packages; keep them stable.
-contract OrigoRegistry is EIP712, Ownable {
+contract OrigoRegistry is EIP712, Ownable2Step {
     uint8  public constant HASH_VERSION = 1;
-    uint8  public constant LINK_DISTANCE = 7;
 
     enum Source { Upload, Capture }
 
@@ -167,7 +165,6 @@ contract OrigoRegistry is EIP712, Ownable {
         // slot 1
         address submitter;        // msg.sender, the gas payer (may differ from creator)
         uint64  pHash;
-        uint32  parentId;         // 0 = none; set by linkDerivative
         // slot 2
         bytes32 fileCommit;       // keccak256(abi.encode(sha256(originalBytes), creator))  (G2)
         // slot 3
@@ -200,7 +197,6 @@ contract OrigoRegistry is EIP712, Ownable {
 
     event Registered(uint32 indexed id, address indexed creator, uint64 pHash, bytes32 fileCommit,
                      Source source, uint8 tileCount, bytes thumbnail);   // thumbnail may be empty
-    event Linked(uint32 indexed childId, uint32 indexed parentId, uint8 parentTileIndex, uint8 distance);
     event Attested(address indexed creator, address indexed attester, string label);
 
     function register(Registration calldata r, bytes calldata creatorSig, bytes calldata thumbnail, uint64[] calldata tiles)
@@ -213,12 +209,12 @@ contract OrigoRegistry is EIP712, Ownable {
     // tiles.length <= MAX_TILES (48) and keccak256(abi.encodePacked(tiles)) == r.tilesHash (or both empty / zero).
     // Every tile is stored; only non-degenerate tiles are indexed in the buckets.
 
-    function linkDerivative(uint32 childId, uint32 parentId, uint8 parentTileIndex) external;
-    // Permissionless. parent registered earlier (lower id); hamming(child.pHash, parent hash at tile index) <= LINK_DISTANCE;
-    // only if child.parentId == 0. parentTileIndex 0 = parent's full hash, so cropped copies can be linked too.
 
     function findMatches(uint64 h, uint8 maxDistance, uint8 probeRadius, uint256 cursor, uint256 maxCandidates)
         external view returns (uint32[] memory ids, uint8[] memory tileIndexes, uint8[] memory distances, uint256 nextCursor);
+
+    // Reverts InvalidCursor if a non-zero cursor lacks the low bit or points outside the walk for this probeRadius.
+    // register reverts TooManyRecords once ids would exceed uint32.
 
     function getRecord(uint32 id) external view returns (Record memory);
     function getRecords(uint32[] calldata ids) external view returns (Record[] memory);
@@ -231,9 +227,9 @@ contract OrigoRegistry is EIP712, Ownable {
 }
 ```
 
-EIP-712 domain: name `Origo`, version `1`, chainId, verifyingContract. Owner is the deployer (`Ownable(msg.sender)`).
+EIP-712 domain: name `Origo`, version `1`, chainId, verifyingContract. Owner is the deployer; ownership transfers are two-step (`Ownable2Step`: `transferOwnership` then `acceptOwnership`).
 
-**Tests (Foundry):** happy path; bad signature; reused nonce; expired deadline; wrong hash version; degenerate hash; duplicate (creator, commit); same commit by two different creators both succeed; oversize or mismatched thumbnail; relay (submitter differs from creator); front-run scenario (a copied commit fails the proof check bound to the attacker's address); `findMatches` fuzz test with no false negatives within distance 7 at radius 1; pagination returns the same set as one big call; 10,000 records in one bucket stays under 8.1M gas per page; `linkDerivative` rules; attester permissions; gas report.
+**Tests (Foundry):** happy path; bad signature; reused nonce; expired deadline; wrong hash version; degenerate hash; duplicate (creator, commit); same commit by two different creators both succeed; oversize or mismatched thumbnail; relay (submitter differs from creator); front-run scenario (a copied commit fails the proof check bound to the attacker's address); `findMatches` fuzz test with no false negatives within distance 7 at radius 1; pagination returns the same set as one big call; 10,000 records in one bucket stays under 8.1M gas per page; attester permissions; gas report.
 
 ## 8. Keys and accounts
 

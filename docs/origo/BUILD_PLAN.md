@@ -21,7 +21,7 @@ Rule of thumb: the MVP must work end to end on testnet by the end of Day 3. Noth
 - [x] SDK index-math: segments, probe order, cursor encoding (mirrors the contract)
 - [x] Fixtures: 20+ public-domain photos with attribution
 - [x] Robustness suite v1, then freeze `MATCH_DISTANCE` and record the false-positive rate (G16)
-- [x] Contract: `register` (EIP-712, random nonces, creator-bound commit, thumbnail), buckets, paginated `findMatches`, `recordsOf`, `getRecords`, `linkDerivative`, attesters (ARCHITECTURE section 7)
+- [x] Contract: `register` (EIP-712, random nonces, creator-bound commit, thumbnail), buckets, paginated `findMatches`, `recordsOf`, `getRecords`, attesters (ARCHITECTURE section 7)
 - [x] Foundry tests incl. the front-run test, the "no false negatives within 7" fuzz test, and the 10,000-record bucket gas test (G2, G9)
 - [x] Deploy to testnet (verified on Sourcify), record the address and gas per `register`
 
@@ -61,7 +61,7 @@ Rule of thumb: the MVP must work end to end on testnet by the end of Day 3. Noth
 | Register (upload), Verify | MVP |
 | In-app camera capture | MVP |
 | Prove ownership (reveal original) | MVP |
-| Attester label, linkDerivative | MVP (small) |
+| Attester label | MVP (small) |
 | Robustness report | MVP (judge-facing) |
 | SDK package usable by other apps | MVP (Track 04 fit) |
 | Relay link (someone else pays gas) | MVP (G5) |

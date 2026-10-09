@@ -4,19 +4,21 @@ Read this first every session. Update it at the end of every session. Keep it sh
 
 ## Current status
 
-- **Phase:** Contract feature-complete with opt-in tiles (49 tests). v2 deployed and verified on testnet; smoke test finds a 20% crop. Next: contract freeze review, then frontend. Mainnet only after the frontend is safe.
+- **Phase:** Contract **frozen** after the pre-freeze review (`CONTRACT_REVIEW.md`, 49 tests). v3 deployed and verified on testnet; smoke test passes (copy and 20% crop found at distance 0). Next: frontend. Mainnet only after the frontend is safe.
+- **Freeze rule:** no contract changes unless a frontend blocker is found; any change needs a new review entry and a testnet redeploy.
 - **Team:** solo (the project owner). **Hosting:** Vercel (static only).
 - **Last updated:** 2026-10-09
 - **Deadline:** Wed Oct 14, 10:59 WIB (Oct 13, 11:59 PM ET). Internal target: Tue Oct 13, 22:00 WIB.
 - **Repo:** https://github.com/wngstnr-code/origo (public). **App:** https://origo-monad.vercel.app
 - **Deployer:** `0x7776BE3f1fdd370097Ee8FaD3A642f04eC9f4Ed1` (key only in local `.env`).
-- **Next action:** final contract review and freeze, then Day 2 (web app: Mera onboarding, Register with crop protection, Verify with manual crop).
+- **Next action:** Day 2 (web app: Mera onboarding, Register with crop protection, Verify with manual crop) against testnet v3.
 
 ## Deployments
 
 | Network | Contract | Address | Tx / block | Date |
 | --- | --- | --- | --- | --- |
-| Monad testnet (10143) | OrigoRegistry v2 (tiles) | [`0x438a903afa6be86dcab7F013cCdB438Bf44c3488`](https://testnet.monadvision.com/address/0x438a903afa6be86dcab7F013cCdB438Bf44c3488), verified on Sourcify (exact match). Dev only, testnet can reset | deploy tx `0x2ca2c96a6de35d7b5d0883f9298292ea5dd38c8e366fc38e532968065381084b`, block 69475101 | 2026-10-09 |
+| Monad testnet (10143) | **OrigoRegistry v3 (frozen candidate)** | [`0xf9C32b380540F0E66104687224296224B794b21F`](https://testnet.monadvision.com/address/0xf9C32b380540F0E66104687224296224B794b21F), verified on Sourcify (exact match). Dev only, testnet can reset | deploy tx `0xb7fb2f123ab1033dd17d2a0abd59d7095cebe256868aee4b54b5a20f654db036`, block 69476056 | 2026-10-09 |
+| Monad testnet (10143) | OrigoRegistry v2 (superseded) | `0x438a903afa6be86dcab7F013cCdB438Bf44c3488` | deploy tx `0x2ca2c96a6de35d7b5d0883f9298292ea5dd38c8e366fc38e532968065381084b`, block 69475101 | 2026-10-09 |
 | Monad testnet (10143) | OrigoRegistry v1 (superseded, no tiles) | `0xEe00BC6a082914b5d5455624a3727dEE1B3c78F6` | block 69472733 | 2026-10-09 |
 | Monad mainnet (143) | OrigoRegistry | not deployed (canonical for submission) | | |
 | Web app (Vercel) | project `origo-app` | https://origo-monad.vercel.app (passkey rpId, never change). Auto-deploys from GitHub `main` | scaffold page live | 2026-10-09 |
@@ -62,6 +64,7 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | `evm_version = "osaka"` pinned | solc 0.8.30 default; confirmed working on Monad testnet; pinning keeps verification reproducible |
 | 2026-10-09 | Finish and freeze the contract before the frontend; mainnet only after the frontend is safe | Owner decision: avoid redeploying mainnet after users register |
 | 2026-10-09 | Opt-in crop protection with 39 tiles (S3 layout) in the contract | Tiles experiment: crops of 10 to 30% go from 0 to 4% found to 93 to 96%, false positives stay 0% |
+| 2026-10-09 | Remove `linkDerivative`/`parentId`; add `InvalidCursor`, `TooManyRecords`, `Ownable2Step` | Pre-freeze review (`CONTRACT_REVIEW.md`): a permissionless set-once link could mislabel honest records |
 | 2026-10-09 | Production domain `origo-monad.vercel.app` | `origo-app.vercel.app` was already taken by an unrelated site; owner chose this. It is the passkey rpId (G6) |
 | 2026-10-09 | Foundry deps as pinned git submodules; SDK built with `tsc` | Reproducible builds; tsup DTS fails on TypeScript 6 |
 
@@ -86,3 +89,4 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | Day 1: OrigoRegistry + 36 Foundry tests, SDK hash + index math + 36 vitest tests, 27 public-domain fixtures, robustness report. Cross-checked bucket key and cursor encoding between SDK and contract |
 | 2026-10-09 | Testnet deploy + Sourcify verification, end-to-end smoke test on testnet |
 | 2026-10-09 | Tiles experiment, opt-in crop protection in contract (49 tests) and SDK (43 tests), testnet v2 deploy + verification + smoke test |
+| 2026-10-09 | Pre-freeze contract review: removed linkDerivative, added cursor validation, id bound, Ownable2Step. Testnet v3 deployed, verified, smoke-tested. Contract frozen |
