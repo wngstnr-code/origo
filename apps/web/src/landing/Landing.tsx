@@ -1,10 +1,11 @@
 import { type ReactNode, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { TESTNET_FAUCET } from "@origo/sdk";
 import { EXPLORER, REGISTRY } from "../lib/chain";
+import { onLinkClick } from "../router";
 import { OwlMark } from "./Logo";
 import { Owl } from "./Owl";
 import { PlanetCoral, PlanetCraters, PlanetRing, Shore, Stars } from "./Space";
-import "./landing.css";
+import "../styles/site.css";
 
 // The demos pull in the hashing code and viem, so they load only when their section comes near.
 const WhatsAppDemo = lazy(() => import("./demos").then((m) => ({ default: m.WhatsAppDemo })));
@@ -65,7 +66,7 @@ function Nav() {
           <a href={GITHUB} target="_blank" rel="noreferrer">
             GitHub
           </a>
-          <a className="button primary nav-cta" href={APP}>
+          <a className="button primary nav-cta" href={APP} onClick={onLinkClick}>
             Launch app
           </a>
         </nav>
@@ -177,7 +178,11 @@ function Footer() {
               <ul>
                 {col.links.map(([label, href]) => (
                   <li key={label}>
-                    <a href={href} {...(href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}>
+                    <a
+                      href={href}
+                      onClick={onLinkClick}
+                      {...(href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
+                    >
                       {label}
                     </a>
                   </li>

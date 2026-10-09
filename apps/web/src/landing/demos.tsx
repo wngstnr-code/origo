@@ -10,6 +10,7 @@ import {
 } from "@origo/sdk";
 import { useEffect, useState } from "react";
 import { loadRGBA } from "../lib/image";
+import { BitGrid } from "../ui/BitGrid";
 import { CHAIN, EXPLORER, REGISTRY, publicClient, registryAbi, shortAddress } from "../lib/registry";
 
 type Async<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; value: T };
@@ -41,22 +42,6 @@ async function fileSize(url: string) {
   return Number(res.headers.get("content-length") ?? 0);
 }
 const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
-
-/** 8 x 8 grid of the 64 hash bits, in the SDK's bit order (D[0][0] is bit 63). */
-function BitGrid({ hash, against }: { hash: bigint; against?: bigint }) {
-  const cells = [];
-  for (let i = 0; i < 64; i++) {
-    const bit = 63n - BigInt(i);
-    const on = (hash >> bit) & 1n;
-    const differs = against !== undefined && ((hash ^ against) >> bit) & 1n;
-    cells.push(<span key={i} className={`bit${on ? " on" : ""}${differs ? " diff" : ""}`} />);
-  }
-  return (
-    <div className="bitgrid" role="img" aria-label={`Fingerprint ${hashToHex(hash)}`}>
-      {cells}
-    </div>
-  );
-}
 
 function Pending({ label }: { label: string }) {
   return <p className="demo-status">{label}</p>;
