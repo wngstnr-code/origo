@@ -79,6 +79,18 @@ async function search(buf) {
   const variants = phashVariants(await decode(buf));
   const found = new Map();
   for (const v of variants) {
+    // Earliest-first pass: the oldest entries of every probe bucket, immune to later flooding.
+    const [eIds, eTiles, eDist, complete] = await pub.readContract({
+      address: registry,
+      abi,
+      functionName: "findEarliest",
+      args: [v, 11, 2, 8n],
+    });
+    eIds.forEach((id, i) => {
+      const prev = found.get(id);
+      if (!prev || eDist[i] < prev.distance) found.set(id, { tile: eTiles[i], distance: eDist[i] });
+    });
+    if (complete) continue;
     let cursor = 0n;
     do {
       const [ids, tileIndexes, distances, next] = await pub.readContract({
