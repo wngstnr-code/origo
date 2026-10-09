@@ -1,0 +1,171 @@
+{
+  "results": {
+    "crop-center-10 | none": {
+      "at7": "4%",
+      "at11": "41%"
+    },
+    "crop-center-10 | S1: 0.9 and 0.8 square (18)": {
+      "at7": "93%",
+      "at11": "96%"
+    },
+    "crop-center-10 | S2: S1 + one-axis 0.9/0.8 (30)": {
+      "at7": "93%",
+      "at11": "96%"
+    },
+    "crop-center-10 | S3: S2 + 0.7 square (39)": {
+      "at7": "93%",
+      "at11": "100%"
+    },
+    "crop-center-10 | S4: all of 1/0.9/0.8 per axis (48)": {
+      "at7": "96%",
+      "at11": "96%"
+    },
+    "crop-center-20 | none": {
+      "at7": "0%",
+      "at11": "0%"
+    },
+    "crop-center-20 | S1: 0.9 and 0.8 square (18)": {
+      "at7": "96%",
+      "at11": "96%"
+    },
+    "crop-center-20 | S2: S1 + one-axis 0.9/0.8 (30)": {
+      "at7": "96%",
+      "at11": "96%"
+    },
+    "crop-center-20 | S3: S2 + 0.7 square (39)": {
+      "at7": "96%",
+      "at11": "100%"
+    },
+    "crop-center-20 | S4: all of 1/0.9/0.8 per axis (48)": {
+      "at7": "96%",
+      "at11": "96%"
+    },
+    "crop-center-30 | none": {
+      "at7": "0%",
+      "at11": "0%"
+    },
+    "crop-center-30 | S1: 0.9 and 0.8 square (18)": {
+      "at7": "11%",
+      "at11": "41%"
+    },
+    "crop-center-30 | S2: S1 + one-axis 0.9/0.8 (30)": {
+      "at7": "11%",
+      "at11": "41%"
+    },
+    "crop-center-30 | S3: S2 + 0.7 square (39)": {
+      "at7": "96%",
+      "at11": "96%"
+    },
+    "crop-center-30 | S4: all of 1/0.9/0.8 per axis (48)": {
+      "at7": "11%",
+      "at11": "48%"
+    },
+    "crop-one-side-10 | none": {
+      "at7": "0%",
+      "at11": "7%"
+    },
+    "crop-one-side-10 | S1: 0.9 and 0.8 square (18)": {
+      "at7": "52%",
+      "at11": "93%"
+    },
+    "crop-one-side-10 | S2: S1 + one-axis 0.9/0.8 (30)": {
+      "at7": "96%",
+      "at11": "96%"
+    },
+    "crop-one-side-10 | S3: S2 + 0.7 square (39)": {
+      "at7": "96%",
+      "at11": "96%"
+    },
+    "crop-one-side-10 | S4: all of 1/0.9/0.8 per axis (48)": {
+      "at7": "96%",
+      "at11": "96%"
+    },
+    "crop-corner-15 | none": {
+      "at7": "0%",
+      "at11": "0%"
+    },
+    "crop-corner-15 | S1: 0.9 and 0.8 square (18)": {
+      "at7": "7%",
+      "at11": "52%"
+    },
+    "crop-corner-15 | S2: S1 + one-axis 0.9/0.8 (30)": {
+      "at7": "7%",
+      "at11": "52%"
+    },
+    "crop-corner-15 | S3: S2 + 0.7 square (39)": {
+      "at7": "7%",
+      "at11": "52%"
+    },
+    "crop-corner-15 | S4: all of 1/0.9/0.8 per axis (48)": {
+      "at7": "11%",
+      "at11": "74%"
+    },
+    "crop-random-75-95 | none": {
+      "at7": "0%",
+      "at11": "0%"
+    },
+    "crop-random-75-95 | S1: 0.9 and 0.8 square (18)": {
+      "at7": "41%",
+      "at11": "85%"
+    },
+    "crop-random-75-95 | S2: S1 + one-axis 0.9/0.8 (30)": {
+      "at7": "44%",
+      "at11": "85%"
+    },
+    "crop-random-75-95 | S3: S2 + 0.7 square (39)": {
+      "at7": "44%",
+      "at11": "89%"
+    },
+    "crop-random-75-95 | S4: all of 1/0.9/0.8 per axis (48)": {
+      "at7": "56%",
+      "at11": "85%"
+    },
+    "whatsapp-like (control) | none": {
+      "at7": "100%",
+      "at11": "100%"
+    },
+    "whatsapp-like (control) | S1: 0.9 and 0.8 square (18)": {
+      "at7": "100%",
+      "at11": "100%"
+    },
+    "whatsapp-like (control) | S2: S1 + one-axis 0.9/0.8 (30)": {
+      "at7": "100%",
+      "at11": "100%"
+    },
+    "whatsapp-like (control) | S3: S2 + 0.7 square (39)": {
+      "at7": "100%",
+      "at11": "100%"
+    },
+    "whatsapp-like (control) | S4: all of 1/0.9/0.8 per axis (48)": {
+      "at7": "100%",
+      "at11": "100%"
+    }
+  },
+  "falsePositives": {
+    "none": {
+      "min": 18,
+      "at7": "0%",
+      "at11": "0%"
+    },
+    "S1: 0.9 and 0.8 square (18)": {
+      "min": 14,
+      "at7": "0%",
+      "at11": "0%"
+    },
+    "S2: S1 + one-axis 0.9/0.8 (30)": {
+      "min": 14,
+      "at7": "0%",
+      "at11": "0%"
+    },
+    "S3: S2 + 0.7 square (39)": {
+      "min": 14,
+      "at7": "0%",
+      "at11": "0%"
+    },
+    "S4: all of 1/0.9/0.8 per axis (48)": {
+      "min": 12,
+      "at7": "0%",
+      "at11": "0%"
+    }
+  }
+}
