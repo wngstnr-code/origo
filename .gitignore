@@ -1,0 +1,21 @@
+# dependencies and builds
+node_modules/
+dist/
+.vite/
+coverage/
+
+# foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/31337/
+
+# env and secrets (never commit keys)
+.env
+.env.*
+!.env.example
+
+# local tooling
+.vercel/
+.DS_Store
+*.log
+.claude/settings.local.json
