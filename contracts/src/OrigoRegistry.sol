@@ -4,13 +4,13 @@ pragma solidity 0.8.30;
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /// @title OrigoRegistry
 /// @notice Photo provenance registry. Stores 64-bit perceptual hashes with creator signatures and
 /// supports on-chain near-duplicate search using multi-index hashing (4 segments of 16 bits).
-contract OrigoRegistry is EIP712, Ownable {
+contract OrigoRegistry is EIP712, Ownable2Step {
     uint8 public constant HASH_VERSION = 1;
-    uint8 public constant LINK_DISTANCE = 7;
     uint8 public constant MIN_POPCOUNT = 8;
     uint8 public constant MAX_POPCOUNT = 56;
     uint16 public constant MAX_THUMBNAIL_BYTES = 4096;
@@ -39,7 +39,6 @@ contract OrigoRegistry is EIP712, Ownable {
         // slot 1
         address submitter;
         uint64 pHash;
-        uint32 parentId;
         // slot 2
         bytes32 fileCommit;
         // slot 3
@@ -79,7 +78,6 @@ contract OrigoRegistry is EIP712, Ownable {
         uint8 tileCount,
         bytes thumbnail
     );
-    event Linked(uint32 indexed childId, uint32 indexed parentId, uint8 parentTileIndex, uint8 distance);
     event Attested(address indexed creator, address indexed attester, string label);
     event AttesterSet(address indexed attester, bool allowed);
 
@@ -95,14 +93,12 @@ contract OrigoRegistry is EIP712, Ownable {
     error ThumbnailTooLarge();
     error ThumbnailHashMismatch();
     error UnknownRecord();
-    error NotEarlier();
-    error AlreadyLinked();
-    error TooFar();
     error NotAttester();
     error RadiusTooLarge();
     error TooManyTiles();
     error TilesHashMismatch();
-    error UnknownTile();
+    error InvalidCursor();
+    error TooManyRecords();
 
     constructor() EIP712("Origo", "1") Ownable(msg.sender) {}
 
@@ -132,6 +128,7 @@ contract OrigoRegistry is EIP712, Ownable {
         _validate(r, thumbnail, tiles);
 
         address creator = _consume(r, creatorSig);
+        if (records.length >= type(uint32).max) revert TooManyRecords();
 
         records.push(
             Record({
@@ -144,7 +141,6 @@ contract OrigoRegistry is EIP712, Ownable {
                 hasThumbnail: thumbnail.length != 0,
                 submitter: msg.sender,
                 pHash: r.pHash,
-                parentId: 0,
                 fileCommit: r.fileCommit,
                 registeredBlock: uint64(block.number),
                 tileCount: uint8(tiles.length)
@@ -265,16 +261,18 @@ contract OrigoRegistry is EIP712, Ownable {
     {
         if (probeRadius > MAX_PROBE_RADIUS) revert RadiusTooLarge();
         if (maxCandidates > MAX_PAGE) maxCandidates = MAX_PAGE;
+        uint256 probeCount = probeRadius == 0 ? 1 : (probeRadius == 1 ? 17 : 137);
 
         Walk memory w;
         w.seg = cursor >> 160;
         w.probe = (cursor >> 96) & type(uint64).max;
         w.offset = (cursor >> 1) & ((uint256(1) << 95) - 1);
+        // A cursor must come from a call with the same probeRadius (low bit set, position in range).
+        if (cursor != 0 && (cursor & 1 == 0 || w.seg >= 4 || w.probe >= probeCount)) revert InvalidCursor();
         w.ids = new uint32[](maxCandidates);
         w.tileIndexes = new uint8[](maxCandidates);
         w.distances = new uint8[](maxCandidates);
 
-        uint256 probeCount = probeRadius == 0 ? 1 : (probeRadius == 1 ? 17 : 137);
         nextCursor = 0;
         while (w.seg < 4) {
             if (!_scanBucket(w, h, maxDistance, maxCandidates)) {
@@ -386,26 +384,8 @@ contract OrigoRegistry is EIP712, Ownable {
     }
 
     // ------------------------------------------------------------------
-    // Derivatives, reads
+    // Reads
     // ------------------------------------------------------------------
-
-    /// @notice Links a later record as a derivative of an earlier one if the child hash is close to
-    /// the parent's hash at `parentTileIndex` (0 = the parent's full hash).
-    function linkDerivative(uint32 childId, uint32 parentId, uint8 parentTileIndex) external {
-        if (childId == 0 || childId > records.length || parentId == 0 || parentId > records.length) {
-            revert UnknownRecord();
-        }
-        if (parentId >= childId) revert NotEarlier();
-        Record storage child = records[childId - 1];
-        Record storage parent = records[parentId - 1];
-        if (child.parentId != 0) revert AlreadyLinked();
-        if (child.hashVersion != parent.hashVersion) revert WrongHashVersion();
-        if (parentTileIndex > parent.tileCount) revert UnknownTile();
-        uint256 d = _popcount(child.pHash ^ _hashAt(parentId, parentTileIndex));
-        if (d > LINK_DISTANCE) revert TooFar();
-        child.parentId = parentId;
-        emit Linked(childId, parentId, parentTileIndex, uint8(d));
-    }
 
     /// @notice Returns a record by id. Reverts for unknown ids.
     function getRecord(uint32 id) external view returns (Record memory) {
