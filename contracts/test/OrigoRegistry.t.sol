@@ -226,7 +226,6 @@ contract OrigoRegistryTest is Test {
         assertFalse(rec.hasThumbnail);
         assertEq(rec.submitter, relayer);
         assertEq(rec.pHash, H);
-        assertEq(rec.parentId, 0);
         assertEq(rec.fileCommit, r.fileCommit);
         assertEq(rec.registeredBlock, block.number);
 
@@ -599,40 +598,42 @@ contract OrigoRegistryTest is Test {
         assertLt(used, 8_100_000);
     }
 
-    // ------------------------------------------------------------------ 10. linkDerivative
+    // ------------------------------------------------------------------ 10. cursor validation, ownership, id bound
 
-    function test_link_success() public {
-        uint32 parent = _register(alice, H, _commit(1));
-        uint32 child = _register(bob, H ^ 0x7F, _commit(2)); // distance 7
-        vm.expectEmit(true, true, false, true);
-        emit OrigoRegistry.Linked(child, parent, 0, 7);
-        registry.linkDerivative(child, parent, 0);
-        assertEq(registry.getRecord(child).parentId, parent);
+    function test_find_invalidCursorReverts() public {
+        _register(alice, H, _commit(1));
+        // low bit not set
+        vm.expectRevert(OrigoRegistry.InvalidCursor.selector);
+        registry.findMatches(H, 7, 1, uint256(1) << 1, 16);
+        // segment out of range
+        vm.expectRevert(OrigoRegistry.InvalidCursor.selector);
+        registry.findMatches(H, 7, 1, (uint256(4) << 160) | 1, 16);
+        // probe index valid for radius 2 but not for radius 1
+        uint256 r2cursor = (uint256(0) << 160) | (uint256(20) << 96) | 1;
+        registry.findMatches(H, 7, 2, r2cursor, 16);
+        vm.expectRevert(OrigoRegistry.InvalidCursor.selector);
+        registry.findMatches(H, 7, 1, r2cursor, 16);
     }
 
-    function test_link_reverts() public {
-        uint32 a = _register(alice, H, _commit(1));
-        uint32 b = _register(bob, H ^ 0x3, _commit(2));
-        uint32 far = _register(bob, H ^ 0xFF, _commit(3)); // distance 8
+    function test_ownership_twoStepTransfer() public {
+        address next = makeAddr("nextOwner");
+        registry.transferOwnership(next);
+        assertEq(registry.owner(), address(this));
+        assertEq(registry.pendingOwner(), next);
+        vm.prank(next);
+        registry.acceptOwnership();
+        assertEq(registry.owner(), next);
+        vm.expectRevert();
+        registry.setAttester(makeAddr("x"), true);
+    }
 
-        vm.expectRevert(OrigoRegistry.NotEarlier.selector);
-        registry.linkDerivative(a, b, 0);
-        vm.expectRevert(OrigoRegistry.NotEarlier.selector);
-        registry.linkDerivative(a, a, 0);
-
-        vm.expectRevert(OrigoRegistry.TooFar.selector);
-        registry.linkDerivative(far, a, 0);
-
-        registry.linkDerivative(b, a, 0);
-        vm.expectRevert(OrigoRegistry.AlreadyLinked.selector);
-        registry.linkDerivative(b, a, 0);
-
-        vm.expectRevert(OrigoRegistry.UnknownRecord.selector);
-        registry.linkDerivative(99, a, 0);
-        vm.expectRevert(OrigoRegistry.UnknownRecord.selector);
-        registry.linkDerivative(b, 0, 0);
-        vm.expectRevert(OrigoRegistry.UnknownRecord.selector);
-        registry.linkDerivative(0, 0, 0);
+    function test_revert_tooManyRecords() public {
+        // records is at storage slot 4 (forge inspect OrigoRegistry storageLayout); fake its length.
+        vm.store(address(registry), bytes32(uint256(4)), bytes32(uint256(type(uint32).max)));
+        OrigoRegistry.Registration memory r = _reg(H, _commit(1));
+        bytes memory sig = _sign(alice, r);
+        vm.expectRevert(OrigoRegistry.TooManyRecords.selector);
+        registry.register(r, sig, "", _none());
     }
 
     function test_getRecord_unknown() public {
@@ -830,34 +831,6 @@ contract OrigoRegistryTest is Test {
         uint32 id = _register(alice, H, _commit(1));
         assertEq(registry.getTiles(id).length, 0);
         assertEq(registry.getRecord(id).tileCount, 0);
-    }
-
-    function test_tiles_linkToParentTile() public {
-        uint64[] memory tiles = _mkTiles(8, 10);
-        uint32 parent = _registerTiles(H, _commit(1), tiles);
-        uint32 c1 = _register(bob, tiles[4] ^ 0x1F, _commit(2)); // distance 5 to tile 5
-        uint32 c2 = _register(bob, tiles[4] ^ 0xFF, _commit(3)); // distance 8 to tile 5
-        uint32 c3 = _register(bob, tiles[4] ^ 0x3, _commit(4));
-
-        vm.expectEmit(true, true, false, true);
-        emit OrigoRegistry.Linked(c1, parent, 5, 5);
-        registry.linkDerivative(c1, parent, 5);
-        assertEq(registry.getRecord(c1).parentId, parent);
-
-        vm.expectRevert(OrigoRegistry.TooFar.selector);
-        registry.linkDerivative(c2, parent, 5);
-
-        vm.expectRevert(OrigoRegistry.UnknownTile.selector);
-        registry.linkDerivative(c3, parent, 11);
-        // tile index 0 on a tiled parent compares against the full hash (far from c3)
-        vm.expectRevert(OrigoRegistry.TooFar.selector);
-        registry.linkDerivative(c3, parent, 0);
-        // a parent without tiles has no tile 1
-        uint32 plain = _register(alice, H ^ 0xF0F0F0, _commit(5));
-        uint32 c4 = _register(bob, H ^ 0xF0F0F0 ^ 1, _commit(6));
-        vm.expectRevert(OrigoRegistry.UnknownTile.selector);
-        registry.linkDerivative(c4, plain, 1);
-        registry.linkDerivative(c4, plain, 0);
     }
 
     function testFuzz_noFalseNegativesTiles(uint256 seed, uint256 flipSeed, uint8 kRaw, uint8 nRaw, uint8 pickRaw)
