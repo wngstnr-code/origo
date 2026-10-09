@@ -2,7 +2,24 @@
 
 Open-source projects with live deployments, checked on 2026-10-09 (GitHub API for activity and license, HTTP 200 on every live link). Use them for **design and UX patterns**. Only copy code from MIT, Apache-2.0, or BSD projects, with attribution; GPL and custom-licensed projects are reference only (our repo is MIT).
 
-## Primary: finished, lesser-known products (owner request)
+## Primary: playful, hand-made products (owner request, 2026-10-09)
+
+The owner found the calm and editorial references too plain and asked for **playful**, still not looking AI-generated, not tied to one theme. Each one below was opened and looked at.
+
+| Product | Live | Code | What it looks like | What to take |
+| --- | --- | --- | --- | --- |
+| Flavortown (Hack Club event) | https://flavortown.hackclub.com | https://github.com/hackclub/flavortown (83 stars, no license: reference only) | Hand-drawn illustration, mascot characters (chef raccoon), checkered tablecloth background, warm red and cream | A mascot and hand-drawn scene as the hero instead of generic shapes |
+| Summer of Making (Hack Club event) | https://summer.hackclub.com | https://github.com/hackclub/summer-of-making (76 stars, no license: reference only) | Craft-paper texture, tilted map-badge logo, chunky tactile buttons | Paper and craft textures, buttons that feel physical |
+| Sprig (Hack Club game console) | https://sprig.hackclub.com | https://github.com/hackclub/sprig (1.1k stars, MIT) | Retro arcade: pixel logo, the real console as the hero, bright yellow chunky buttons on dark | Pixel type for a logo or badges, "real object" hero, chunky CTAs |
+| Sticker Forge | https://sticker.oooo.so | https://github.com/CatsJuice/sticker-forge (746 stars, MIT) | A WebGL sticker you can peel and tilt, very tactile | A peelable "REGISTERED" sticker or stamp on a photo after registration |
+| Nouns | https://nouns.wtf | https://github.com/nounsDAO/nouns-monorepo (684 stars, GPL-3.0: reference only) | Iconic pixel character with a big serif headline on soft grey | A pixel mascot with a strong single motif |
+| Gumroad | https://gumroad.com | https://github.com/antiwork/gumroad (9.8k stars, MIT) | Neo-brutalist: bold pink, chunky 3D coin shapes, flat illustrations, thick outlines | Bold single accent with thick outlines and chunky shapes |
+
+Not kept: Petdex (generic centered layout), Jukebox (kept redirecting), Patron (site error).
+
+## Earlier rounds (owner found these too plain)
+
+### Finished, lesser-known products
 
 Real products (not templates or libraries), not big brands, open source, with a live deployment. Each one was opened and looked at on 2026-10-09.
 
