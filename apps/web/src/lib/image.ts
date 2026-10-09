@@ -4,7 +4,17 @@ import type { RGBAImage } from "@origo/sdk";
 export async function loadRGBA(url: string): Promise<RGBAImage> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Could not load ${url} (${res.status})`);
-  const bitmap = await createImageBitmap(await res.blob(), { imageOrientation: "from-image" });
+  return blobToRGBA(await res.blob());
+}
+
+/** Decodes a picked or dropped file. Throws a readable error for files the browser cannot decode. */
+export async function blobToRGBA(blob: Blob): Promise<RGBAImage> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+  } catch {
+    throw new Error("This file is not an image the browser can open. Try a JPEG, PNG or WebP.");
+  }
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D is not available");
