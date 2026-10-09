@@ -29,6 +29,7 @@
   --wood: #7a4a2b;
   --metal: #59627a;
   --lens: #9fd6ea;
+  --lens-glass: #dff1f8;
   --planet-lilac: #9f86ea;
   --planet-lilac-2: #7d63d6;
   --planet-coral: #e8655a;
@@ -97,4 +98,20 @@ a {
     animation: none !important;
     transition: none !important;
   }
+}
+
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  top: 16px;
 }
