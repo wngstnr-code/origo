@@ -32,6 +32,7 @@ contract OrigoRegistryTest is Test {
             source: 0,
             hashVersion: 1,
             thumbnailHash: bytes32(0),
+            tilesHash: bytes32(0),
             nonce: ++nonceCounter,
             deadline: block.timestamp + 1 hours
         });
@@ -46,7 +47,7 @@ contract OrigoRegistryTest is Test {
         OrigoRegistry.Registration memory r = _reg(h, commit);
         bytes memory sig = _sign(w, r);
         vm.prank(relayer);
-        return registry.register(r, sig, "");
+        return registry.register(r, sig, "", _none());
     }
 
     function _commit(uint256 i) internal pure returns (bytes32) {
@@ -81,33 +82,113 @@ contract OrigoRegistryTest is Test {
         return false;
     }
 
+    function _none() internal pure returns (uint64[] memory) {
+        return new uint64[](0);
+    }
+
     function _page(uint64 h, uint8 maxD, uint8 radius, uint256 maxC)
         internal
         view
         returns (uint32[] memory ids, uint8[] memory ds)
     {
+        (ids,, ds) = _pageT(h, maxD, radius, maxC);
+    }
+
+    struct Acc {
+        uint32[] ids;
+        uint8[] tis;
+        uint8[] ds;
+    }
+
+    function _pageT(uint64 h, uint8 maxD, uint8 radius, uint256 maxC)
+        internal
+        view
+        returns (uint32[] memory, uint8[] memory, uint8[] memory)
+    {
+        Acc memory acc = Acc(new uint32[](0), new uint8[](0), new uint8[](0));
         uint256 cursor;
-        ids = new uint32[](0);
-        ds = new uint8[](0);
         uint256 guard;
         do {
-            (uint32[] memory a, uint8[] memory b, uint256 next) = registry.findMatches(h, maxD, radius, cursor, maxC);
-            uint32[] memory ni = new uint32[](ids.length + a.length);
-            uint8[] memory nd = new uint8[](ids.length + a.length);
-            for (uint256 i = 0; i < ids.length; i++) {
-                ni[i] = ids[i];
-                nd[i] = ds[i];
-            }
-            for (uint256 i = 0; i < a.length; i++) {
-                ni[ids.length + i] = a[i];
-                nd[ds.length + i] = b[i];
-            }
-            ids = ni;
-            ds = nd;
-            cursor = next;
+            cursor = _append(acc, h, maxD, radius, cursor, maxC);
             guard++;
             require(guard < 20000, "paging runaway");
         } while (cursor != 0);
+        return (acc.ids, acc.tis, acc.ds);
+    }
+
+    function _append(Acc memory acc, uint64 h, uint8 maxD, uint8 radius, uint256 cursor, uint256 maxC)
+        internal
+        view
+        returns (uint256 next)
+    {
+        Acc memory page = Acc(new uint32[](0), new uint8[](0), new uint8[](0));
+        (page.ids, page.tis, page.ds, next) = registry.findMatches(h, maxD, radius, cursor, maxC);
+        uint256 n = acc.ids.length;
+        uint256 m = page.ids.length;
+        uint32[] memory oi = new uint32[](n + m);
+        uint8[] memory ot = new uint8[](n + m);
+        uint8[] memory od = new uint8[](n + m);
+        for (uint256 i = 0; i < n; i++) {
+            oi[i] = acc.ids[i];
+            ot[i] = acc.tis[i];
+            od[i] = acc.ds[i];
+        }
+        for (uint256 i = 0; i < m; i++) {
+            oi[n + i] = page.ids[i];
+            ot[n + i] = page.tis[i];
+            od[n + i] = page.ds[i];
+        }
+        acc.ids = oi;
+        acc.tis = ot;
+        acc.ds = od;
+    }
+
+    function _mkTiles(uint256 seed, uint256 n) internal pure returns (uint64[] memory t) {
+        t = new uint64[](n);
+        for (uint256 i = 0; i < n; i++) {
+            uint256 salt;
+            uint64 x;
+            do {
+                x = uint64(uint256(keccak256(abi.encode("tile", seed, i, salt++))));
+            } while (_pop(x) < 8 || _pop(x) > 56);
+            t[i] = x;
+        }
+    }
+
+    /// @dev Tiles that all share segment 0 with H, so they land in the same bucket as H.
+    function _seg0Tiles(uint256 seed, uint256 n) internal pure returns (uint64[] memory t) {
+        t = new uint64[](n);
+        for (uint256 i = 0; i < n; i++) {
+            t[i] = (uint64(0xF0F0) << 48) | uint64(uint256(keccak256(abi.encode("s0", seed, i))) & 0xFFFF_FFFF_FFFF);
+        }
+    }
+
+    function _regTiles(uint64 h, bytes32 commit, uint64[] memory tiles, bytes memory thumb)
+        internal
+        returns (OrigoRegistry.Registration memory r, bytes memory sig)
+    {
+        r = _reg(h, commit);
+        if (tiles.length != 0) r.tilesHash = keccak256(abi.encodePacked(tiles));
+        if (thumb.length != 0) r.thumbnailHash = keccak256(thumb);
+        sig = _sign(alice, r);
+    }
+
+    function _registerTiles(uint64 h, bytes32 commit, uint64[] memory tiles) internal returns (uint32) {
+        (OrigoRegistry.Registration memory r, bytes memory sig) = _regTiles(h, commit, tiles, "");
+        return registry.register(r, sig, "", tiles);
+    }
+
+    function _has(uint32[] memory ids, uint8[] memory tis, uint8[] memory ds, uint32 id, uint8 ti, uint8 d)
+        internal
+        pure
+        returns (bool)
+    {
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (ids[i] == id && tis[i] == ti) {
+                if (ds[i] == d) return true;
+            }
+        }
+        return false;
     }
 
     /// @dev De-duplicates by id; result is an array indexed by id holding distance + 1 (0 = absent).
@@ -126,10 +207,10 @@ contract OrigoRegistryTest is Test {
         bytes memory sig = _sign(alice, r);
 
         vm.expectEmit(true, true, false, true);
-        emit OrigoRegistry.Registered(1, alice.addr, H, r.fileCommit, OrigoRegistry.Source.Upload, "");
+        emit OrigoRegistry.Registered(1, alice.addr, H, r.fileCommit, OrigoRegistry.Source.Upload, 0, "");
         vm.prank(relayer);
         uint256 g = gasleft();
-        uint32 id = registry.register(r, sig, "");
+        uint32 id = registry.register(r, sig, "", _none());
         g -= gasleft();
         console2.log("register gas (no thumbnail):", g);
 
@@ -181,26 +262,26 @@ contract OrigoRegistryTest is Test {
         bytes memory sig = _sign(alice, r);
         r.width = 999; // tamper after signing: recovers a different signer, which is not a revert by itself
         vm.prank(relayer);
-        uint32 id = registry.register(r, sig, "");
+        uint32 id = registry.register(r, sig, "", _none());
         assertTrue(registry.getRecord(id).creator != alice.addr);
 
         bytes memory garbage = new bytes(65);
         OrigoRegistry.Registration memory r2 = _reg(H, _commit(2));
         vm.expectRevert(OrigoRegistry.InvalidSignature.selector);
-        registry.register(r2, garbage, "");
+        registry.register(r2, garbage, "", _none());
 
         vm.expectRevert(OrigoRegistry.InvalidSignature.selector);
-        registry.register(r2, hex"1234", "");
+        registry.register(r2, hex"1234", "", _none());
     }
 
     function test_revert_nonceReused() public {
         OrigoRegistry.Registration memory r = _reg(H, _commit(1));
-        registry.register(r, _sign(alice, r), "");
+        registry.register(r, _sign(alice, r), "", _none());
         OrigoRegistry.Registration memory r2 = _reg(H, _commit(2));
         r2.nonce = r.nonce;
         bytes memory sig = _sign(alice, r2);
         vm.expectRevert(OrigoRegistry.NonceUsed.selector);
-        registry.register(r2, sig, "");
+        registry.register(r2, sig, "", _none());
     }
 
     function test_revert_expired() public {
@@ -208,11 +289,11 @@ contract OrigoRegistryTest is Test {
         r.deadline = block.timestamp - 1;
         bytes memory sig = _sign(alice, r);
         vm.expectRevert(OrigoRegistry.Expired.selector);
-        registry.register(r, sig, "");
+        registry.register(r, sig, "", _none());
         // deadline == now is accepted
         r.deadline = block.timestamp;
         sig = _sign(alice, r);
-        registry.register(r, sig, "");
+        registry.register(r, sig, "", _none());
     }
 
     function test_revert_wrongHashVersion() public {
@@ -220,7 +301,7 @@ contract OrigoRegistryTest is Test {
         r.hashVersion = 2;
         bytes memory sig = _sign(alice, r);
         vm.expectRevert(OrigoRegistry.WrongHashVersion.selector);
-        registry.register(r, sig, "");
+        registry.register(r, sig, "", _none());
     }
 
     function test_revert_degenerateHash() public {
@@ -229,7 +310,7 @@ contract OrigoRegistryTest is Test {
             OrigoRegistry.Registration memory r = _reg(bad[i], _commit(i + 1));
             bytes memory sig = _sign(alice, r);
             vm.expectRevert(OrigoRegistry.DegenerateHash.selector);
-            registry.register(r, sig, "");
+            registry.register(r, sig, "", _none());
         }
         assertEq(_pop(0x7F), 7);
         assertEq(_pop(~uint64(0x7F)), 57);
@@ -243,13 +324,13 @@ contract OrigoRegistryTest is Test {
         r.width = 0;
         bytes memory sig = _sign(alice, r);
         vm.expectRevert(OrigoRegistry.InvalidDimensions.selector);
-        registry.register(r, sig, "");
+        registry.register(r, sig, "", _none());
 
         r = _reg(H, _commit(1));
         r.height = 0;
         sig = _sign(alice, r);
         vm.expectRevert(OrigoRegistry.InvalidDimensions.selector);
-        registry.register(r, sig, "");
+        registry.register(r, sig, "", _none());
     }
 
     function test_revert_invalidSource() public {
@@ -257,11 +338,11 @@ contract OrigoRegistryTest is Test {
         r.source = 2;
         bytes memory sig = _sign(alice, r);
         vm.expectRevert(OrigoRegistry.InvalidSource.selector);
-        registry.register(r, sig, "");
+        registry.register(r, sig, "", _none());
 
         r.source = 1; // Capture is fine
         sig = _sign(alice, r);
-        uint32 id = registry.register(r, sig, "");
+        uint32 id = registry.register(r, sig, "", _none());
         assertEq(uint8(registry.getRecord(id).source), 1);
     }
 
@@ -269,7 +350,7 @@ contract OrigoRegistryTest is Test {
         OrigoRegistry.Registration memory r = _reg(H, bytes32(0));
         bytes memory sig = _sign(alice, r);
         vm.expectRevert(OrigoRegistry.EmptyCommit.selector);
-        registry.register(r, sig, "");
+        registry.register(r, sig, "", _none());
     }
 
     function test_revert_duplicateCreatorCommit() public {
@@ -277,7 +358,7 @@ contract OrigoRegistryTest is Test {
         OrigoRegistry.Registration memory r = _reg(H ^ 1, _commit(1));
         bytes memory sig = _sign(alice, r);
         vm.expectRevert(OrigoRegistry.CommitAlreadyRegistered.selector);
-        registry.register(r, sig, "");
+        registry.register(r, sig, "", _none());
     }
 
     // ------------------------------------------------------------------ 4. front-run
@@ -320,7 +401,7 @@ contract OrigoRegistryTest is Test {
     function test_thumbnail_emptyWithNonzeroHashReverts() public {
         (OrigoRegistry.Registration memory r, bytes memory sig) = _regThumb("", keccak256("x"), true);
         vm.expectRevert(OrigoRegistry.ThumbnailHashMismatch.selector);
-        registry.register(r, sig, "");
+        registry.register(r, sig, "", _none());
     }
 
     function test_thumbnail_4096Ok_andGas() public {
@@ -330,9 +411,9 @@ contract OrigoRegistryTest is Test {
         }
         (OrigoRegistry.Registration memory r, bytes memory sig) = _regThumb(t, 0, false);
         vm.expectEmit(true, true, false, true);
-        emit OrigoRegistry.Registered(1, alice.addr, H, r.fileCommit, OrigoRegistry.Source.Upload, t);
+        emit OrigoRegistry.Registered(1, alice.addr, H, r.fileCommit, OrigoRegistry.Source.Upload, 0, t);
         uint256 g = gasleft();
-        uint32 id = registry.register(r, sig, t);
+        uint32 id = registry.register(r, sig, t, _none());
         g -= gasleft();
         console2.log("register gas (4096 byte thumbnail):", g);
         assertTrue(registry.getRecord(id).hasThumbnail);
@@ -342,14 +423,14 @@ contract OrigoRegistryTest is Test {
         bytes memory t = new bytes(4097);
         (OrigoRegistry.Registration memory r, bytes memory sig) = _regThumb(t, 0, false);
         vm.expectRevert(OrigoRegistry.ThumbnailTooLarge.selector);
-        registry.register(r, sig, t);
+        registry.register(r, sig, t, _none());
     }
 
     function test_thumbnail_hashMismatchReverts() public {
         bytes memory t = hex"010203";
         (OrigoRegistry.Registration memory r, bytes memory sig) = _regThumb(t, keccak256("other"), true);
         vm.expectRevert(OrigoRegistry.ThumbnailHashMismatch.selector);
-        registry.register(r, sig, t);
+        registry.register(r, sig, t, _none());
     }
 
     // ------------------------------------------------------------------ 6. findMatches basics
@@ -480,10 +561,10 @@ contract OrigoRegistryTest is Test {
         for (uint256 i = 0; i < 3; i++) {
             _register(alice, H ^ uint64(i), _commit(i + 1));
         }
-        (,, uint256 next) = registry.findMatches(H, 7, 0, 0, 1);
+        (,,, uint256 next) = registry.findMatches(H, 7, 0, 0, 1);
         // (segment 0, probe 0, offset 1)
         assertEq(next, (uint256(0) << 160) | (uint256(0) << 96) | (uint256(1) << 1) | 1);
-        (,, uint256 n0) = registry.findMatches(H, 7, 0, 0, 0);
+        (,,, uint256 n0) = registry.findMatches(H, 7, 0, 0, 0);
         assertEq(n0, 1);
     }
 
@@ -496,7 +577,7 @@ contract OrigoRegistryTest is Test {
             uint64 low = uint64(uint256(keccak256(abi.encode("h", i))) & 0xFFFF_FFFF_FFFF);
             OrigoRegistry.Registration memory r = _reg(seg0 | low, _commit(i + 1));
             bytes memory sig = _sign(alice, r);
-            registry.register(r, sig, "");
+            registry.register(r, sig, "", _none());
         }
         vm.resumeGasMetering();
         assertEq(registry.recordCount(), 10_000);
@@ -504,7 +585,7 @@ contract OrigoRegistryTest is Test {
 
         uint64 q = seg0 | 0x1234_5678_9ABC;
         uint256 before = gasleft();
-        (,, uint256 next) = registry.findMatches(q, 7, 1, 0, 256);
+        (,,, uint256 next) = registry.findMatches(q, 7, 1, 0, 256);
         uint256 used = before - gasleft();
         console2.log("findMatches page gas (256 candidates, radius 1, 10k bucket):", used);
         assertGt(next, 0);
@@ -524,8 +605,8 @@ contract OrigoRegistryTest is Test {
         uint32 parent = _register(alice, H, _commit(1));
         uint32 child = _register(bob, H ^ 0x7F, _commit(2)); // distance 7
         vm.expectEmit(true, true, false, true);
-        emit OrigoRegistry.Linked(child, parent, 7);
-        registry.linkDerivative(child, parent);
+        emit OrigoRegistry.Linked(child, parent, 0, 7);
+        registry.linkDerivative(child, parent, 0);
         assertEq(registry.getRecord(child).parentId, parent);
     }
 
@@ -535,23 +616,23 @@ contract OrigoRegistryTest is Test {
         uint32 far = _register(bob, H ^ 0xFF, _commit(3)); // distance 8
 
         vm.expectRevert(OrigoRegistry.NotEarlier.selector);
-        registry.linkDerivative(a, b);
+        registry.linkDerivative(a, b, 0);
         vm.expectRevert(OrigoRegistry.NotEarlier.selector);
-        registry.linkDerivative(a, a);
+        registry.linkDerivative(a, a, 0);
 
         vm.expectRevert(OrigoRegistry.TooFar.selector);
-        registry.linkDerivative(far, a);
+        registry.linkDerivative(far, a, 0);
 
-        registry.linkDerivative(b, a);
+        registry.linkDerivative(b, a, 0);
         vm.expectRevert(OrigoRegistry.AlreadyLinked.selector);
-        registry.linkDerivative(b, a);
+        registry.linkDerivative(b, a, 0);
 
         vm.expectRevert(OrigoRegistry.UnknownRecord.selector);
-        registry.linkDerivative(99, a);
+        registry.linkDerivative(99, a, 0);
         vm.expectRevert(OrigoRegistry.UnknownRecord.selector);
-        registry.linkDerivative(b, 0);
+        registry.linkDerivative(b, 0, 0);
         vm.expectRevert(OrigoRegistry.UnknownRecord.selector);
-        registry.linkDerivative(0, 0);
+        registry.linkDerivative(0, 0, 0);
     }
 
     function test_getRecord_unknown() public {
@@ -642,5 +723,243 @@ contract OrigoRegistryTest is Test {
         assertEq(registry.recordsOf(alice.addr, 5, 10).length, 0);
         assertEq(registry.recordsOf(alice.addr, 500, 10).length, 0);
         assertEq(registry.recordsOf(makeAddr("nobody"), 0, 10).length, 0);
+    }
+
+    // ------------------------------------------------------------------ 13. crop protection tiles
+
+    function test_tiles_registerAndFind() public {
+        uint64[] memory tiles = _mkTiles(1, 39);
+        uint32 id = _registerTiles(H, _commit(1), tiles);
+
+        OrigoRegistry.Record memory rec = registry.getRecord(id);
+        assertEq(rec.tileCount, 39);
+        uint64[] memory got = registry.getTiles(id);
+        assertEq(got.length, 39);
+        for (uint256 i = 0; i < 39; i++) {
+            assertEq(got[i], tiles[i]);
+        }
+
+        // full hash still found with tileIndex 0
+        (uint32[] memory ids, uint8[] memory tis, uint8[] memory ds) = _pageT(H, 0, 1, type(uint256).max);
+        assertTrue(_has(ids, tis, ds, id, 0, 0));
+
+        // each tile with up to 7 flipped bits is found with the right tile index
+        for (uint256 i = 0; i < 39; i++) {
+            uint256 k = i % 8;
+            uint64 q = _flip(tiles[i], 100 + i, k);
+            (ids, tis, ds) = _pageT(q, 7, 1, type(uint256).max);
+            assertTrue(_has(ids, tis, ds, id, uint8(i + 1), uint8(k)), "tile not found");
+        }
+    }
+
+    function test_tiles_registeredEventCarriesTileCount() public {
+        uint64[] memory tiles = _mkTiles(2, 5);
+        (OrigoRegistry.Registration memory r, bytes memory sig) = _regTiles(H, _commit(1), tiles, "");
+        vm.expectEmit(true, true, false, true);
+        emit OrigoRegistry.Registered(1, alice.addr, H, r.fileCommit, OrigoRegistry.Source.Upload, 5, "");
+        registry.register(r, sig, "", tiles);
+    }
+
+    function test_tiles_hashMismatchReverts() public {
+        uint64[] memory tiles = _mkTiles(3, 4);
+        (OrigoRegistry.Registration memory r, bytes memory sig) = _regTiles(H, _commit(1), tiles, "");
+        uint64[] memory other = _mkTiles(4, 4);
+        vm.expectRevert(OrigoRegistry.TilesHashMismatch.selector);
+        registry.register(r, sig, "", other);
+        // a different order also mismatches
+        uint64[] memory swapped = _mkTiles(3, 4);
+        (swapped[0], swapped[1]) = (swapped[1], swapped[0]);
+        vm.expectRevert(OrigoRegistry.TilesHashMismatch.selector);
+        registry.register(r, sig, "", swapped);
+    }
+
+    function test_tiles_tilesHashIsPaddedWords() public {
+        uint64[] memory tiles = _mkTiles(5, 3);
+        bytes memory packed = abi.encodePacked(tiles);
+        assertEq(packed.length, 96);
+        _registerTiles(H, _commit(1), tiles);
+    }
+
+    function test_tiles_tooManyReverts() public {
+        uint64[] memory tiles = _mkTiles(6, 49);
+        (OrigoRegistry.Registration memory r, bytes memory sig) = _regTiles(H, _commit(1), tiles, "");
+        vm.expectRevert(OrigoRegistry.TooManyTiles.selector);
+        registry.register(r, sig, "", tiles);
+
+        // exactly MAX_TILES is fine
+        uint64[] memory ok = _mkTiles(6, 48);
+        assertEq(_registerTiles(H, _commit(2), ok), 1);
+        assertEq(registry.getRecord(1).tileCount, 48);
+    }
+
+    function test_tiles_emptyWithNonzeroHashReverts() public {
+        OrigoRegistry.Registration memory r = _reg(H, _commit(1));
+        r.tilesHash = keccak256("something");
+        bytes memory sig = _sign(alice, r);
+        vm.expectRevert(OrigoRegistry.TilesHashMismatch.selector);
+        registry.register(r, sig, "", _none());
+    }
+
+    function test_tiles_degenerateStoredNotIndexed() public {
+        uint64[] memory tiles = new uint64[](3);
+        tiles[0] = 0x7F; // popcount 7, degenerate
+        tiles[1] = _mkTiles(7, 1)[0];
+        tiles[2] = ~uint64(0); // popcount 64, degenerate
+        uint32 id = _registerTiles(H, _commit(1), tiles);
+
+        uint64[] memory got = registry.getTiles(id);
+        assertEq(got.length, 3);
+        assertEq(got[0], 0x7F);
+        assertEq(got[2], ~uint64(0));
+        assertEq(registry.getRecord(id).tileCount, 3);
+
+        (uint32[] memory ids, uint8[] memory tis, uint8[] memory ds) = _pageT(0x7F, 7, 2, type(uint256).max);
+        for (uint256 i = 0; i < ids.length; i++) {
+            assertTrue(tis[i] != 1 && tis[i] != 3, "degenerate tile indexed");
+        }
+        assertEq(registry.bucketLength(registry.bucketKey(3, 0x007F)), 0);
+        (ids, tis, ds) = _pageT(tiles[1], 0, 0, type(uint256).max);
+        assertTrue(_has(ids, tis, ds, id, 2, 0));
+    }
+
+    function test_tiles_getTilesUnknownAndEmpty() public {
+        vm.expectRevert(OrigoRegistry.UnknownRecord.selector);
+        registry.getTiles(0);
+        vm.expectRevert(OrigoRegistry.UnknownRecord.selector);
+        registry.getTiles(1);
+        uint32 id = _register(alice, H, _commit(1));
+        assertEq(registry.getTiles(id).length, 0);
+        assertEq(registry.getRecord(id).tileCount, 0);
+    }
+
+    function test_tiles_linkToParentTile() public {
+        uint64[] memory tiles = _mkTiles(8, 10);
+        uint32 parent = _registerTiles(H, _commit(1), tiles);
+        uint32 c1 = _register(bob, tiles[4] ^ 0x1F, _commit(2)); // distance 5 to tile 5
+        uint32 c2 = _register(bob, tiles[4] ^ 0xFF, _commit(3)); // distance 8 to tile 5
+        uint32 c3 = _register(bob, tiles[4] ^ 0x3, _commit(4));
+
+        vm.expectEmit(true, true, false, true);
+        emit OrigoRegistry.Linked(c1, parent, 5, 5);
+        registry.linkDerivative(c1, parent, 5);
+        assertEq(registry.getRecord(c1).parentId, parent);
+
+        vm.expectRevert(OrigoRegistry.TooFar.selector);
+        registry.linkDerivative(c2, parent, 5);
+
+        vm.expectRevert(OrigoRegistry.UnknownTile.selector);
+        registry.linkDerivative(c3, parent, 11);
+        // tile index 0 on a tiled parent compares against the full hash (far from c3)
+        vm.expectRevert(OrigoRegistry.TooFar.selector);
+        registry.linkDerivative(c3, parent, 0);
+        // a parent without tiles has no tile 1
+        uint32 plain = _register(alice, H ^ 0xF0F0F0, _commit(5));
+        uint32 c4 = _register(bob, H ^ 0xF0F0F0 ^ 1, _commit(6));
+        vm.expectRevert(OrigoRegistry.UnknownTile.selector);
+        registry.linkDerivative(c4, plain, 1);
+        registry.linkDerivative(c4, plain, 0);
+    }
+
+    function testFuzz_noFalseNegativesTiles(uint256 seed, uint256 flipSeed, uint8 kRaw, uint8 nRaw, uint8 pickRaw)
+        public
+    {
+        uint256 n = bound(nRaw, 1, 48);
+        uint256 k = bound(kRaw, 0, 7);
+        uint64[] memory tiles = _mkTiles(seed, n);
+        uint64 h = _mkTiles(seed ^ type(uint128).max, 1)[0];
+        uint32 id = _registerTiles(h, _commit(1), tiles);
+
+        uint256 pick = bound(pickRaw, 0, n); // 0 = full hash
+        uint64 target = pick == 0 ? h : tiles[pick - 1];
+        uint64 q = _flip(target, flipSeed, k);
+        assertEq(_pop(q ^ target), k);
+        (uint32[] memory ids, uint8[] memory tis, uint8[] memory ds) = _pageT(q, 7, 1, 3);
+        bool ok;
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (ids[i] == id && tis[i] == pick) {
+                ok = true;
+                assertEq(ds[i], _pop(q ^ target));
+            }
+        }
+        assertTrue(ok, "false negative");
+    }
+
+    function test_tiles_paginationEquivalence() public {
+        for (uint256 i = 0; i < 12; i++) {
+            uint64[] memory tiles = new uint64[](4);
+            for (uint256 j = 0; j < 4; j++) {
+                tiles[j] = H ^ uint64(((i + 1) * (j + 3)) % 16) ^ (uint64(j) << 24);
+            }
+            _registerTiles(H ^ uint64(i), _commit(i + 1), tiles);
+        }
+        uint64 q = H ^ 0x5;
+        (uint32[] memory ia, uint8[] memory ta, uint8[] memory da) = _pageT(q, 7, 1, 1);
+        (uint32[] memory ib, uint8[] memory tb, uint8[] memory db) = _pageT(q, 7, 1, 7);
+        (uint32[] memory ic, uint8[] memory tc, uint8[] memory dc) = _pageT(q, 7, 1, type(uint256).max);
+        assertGt(ic.length, 20);
+        assertEq(ia.length, ic.length);
+        assertEq(ib.length, ic.length);
+        for (uint256 i = 0; i < ic.length; i++) {
+            assertEq(ia[i], ic[i]);
+            assertEq(ta[i], tc[i]);
+            assertEq(da[i], dc[i]);
+            assertEq(ib[i], ic[i]);
+            assertEq(tb[i], tc[i]);
+            assertEq(db[i], dc[i]);
+        }
+    }
+
+    function test_find_maxCandidatesCappedAtMaxPage() public {
+        vm.pauseGasMetering();
+        uint256 records_ = 28;
+        for (uint256 i = 0; i < records_; i++) {
+            _registerTiles(H, _commit(i + 1), _seg0Tiles(i, 39));
+        }
+        vm.resumeGasMetering();
+        uint256 inBucket = registry.bucketLength(registry.bucketKey(0, 0xF0F0));
+        assertEq(inBucket, records_ * 40);
+        assertGt(inBucket, registry.MAX_PAGE());
+
+        (uint32[] memory ids, uint8[] memory tis, uint8[] memory ds, uint256 next) =
+            registry.findMatches(H, 64, 0, 0, type(uint256).max);
+        assertTrue(next != 0, "expected more pages");
+        assertEq((next >> 1) & ((uint256(1) << 95) - 1), registry.MAX_PAGE());
+        assertEq(ids.length, registry.MAX_PAGE());
+        assertEq(tis.length, ids.length);
+        assertEq(ds.length, ids.length);
+    }
+
+    // ------------------------------------------------------------------ 14. tile gas
+
+    function test_gas_registerWithTiles() public {
+        uint64[] memory tiles = _mkTiles(9, 39);
+        bytes memory t = new bytes(4096);
+        for (uint256 i = 0; i < t.length; i++) {
+            t[i] = bytes1(uint8(i * 5 + 1));
+        }
+
+        // Each case runs from the same fresh state (snapshot) so earlier cases do not warm storage.
+        uint256 snap = vm.snapshotState();
+        (OrigoRegistry.Registration memory r0, bytes memory s0) = _regTiles(H, _commit(1), _none(), "");
+        uint256 g = gasleft();
+        registry.register(r0, s0, "", _none());
+        g -= gasleft();
+        console2.log("register gas (0 tiles):", g);
+        vm.revertToState(snap);
+
+        snap = vm.snapshotState();
+        (OrigoRegistry.Registration memory r1, bytes memory s1) = _regTiles(H, _commit(2), tiles, "");
+        g = gasleft();
+        registry.register(r1, s1, "", tiles);
+        g -= gasleft();
+        console2.log("register gas (39 tiles):", g);
+        vm.revertToState(snap);
+
+        (OrigoRegistry.Registration memory r2, bytes memory s2) = _regTiles(H, _commit(3), tiles, t);
+        g = gasleft();
+        registry.register(r2, s2, t, tiles);
+        g -= gasleft();
+        console2.log("register gas (39 tiles + 4 KB thumbnail):", g);
+        assertLt(g, 30_000_000);
     }
 }
