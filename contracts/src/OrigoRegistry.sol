@@ -15,9 +15,11 @@ contract OrigoRegistry is EIP712, Ownable {
     uint8 public constant MAX_POPCOUNT = 56;
     uint16 public constant MAX_THUMBNAIL_BYTES = 4096;
     uint8 public constant MAX_PROBE_RADIUS = 2;
+    uint8 public constant MAX_TILES = 48;
+    uint256 public constant MAX_PAGE = 1024;
 
     bytes32 public constant REGISTRATION_TYPEHASH = keccak256(
-        "Registration(uint64 pHash,bytes32 fileCommit,uint16 width,uint16 height,uint8 source,uint8 hashVersion,bytes32 thumbnailHash,uint256 nonce,uint256 deadline)"
+        "Registration(uint64 pHash,bytes32 fileCommit,uint16 width,uint16 height,uint8 source,uint8 hashVersion,bytes32 thumbnailHash,bytes32 tilesHash,uint256 nonce,uint256 deadline)"
     );
 
     enum Source {
@@ -42,6 +44,7 @@ contract OrigoRegistry is EIP712, Ownable {
         bytes32 fileCommit;
         // slot 3
         uint64 registeredBlock;
+        uint8 tileCount;
     }
 
     struct Registration {
@@ -52,12 +55,16 @@ contract OrigoRegistry is EIP712, Ownable {
         uint8 source;
         uint8 hashVersion;
         bytes32 thumbnailHash;
+        bytes32 tilesHash;
         uint256 nonce;
         uint256 deadline;
     }
 
     Record[] internal records;
-    mapping(bytes32 => uint32[]) internal buckets;
+    /// @dev Entry = (uint64(id) << 8) | tileIndex. tileIndex 0 is the full hash.
+    mapping(bytes32 => uint64[]) internal buckets;
+    /// @dev Tile i (1-based) of record id is tileHashes[id][i - 1].
+    mapping(uint32 => uint64[]) internal tileHashes;
     mapping(address => uint32[]) internal creatorRecords;
     mapping(address => mapping(uint256 => bool)) public usedNonce;
     mapping(bytes32 => bool) public usedCommitKey;
@@ -66,9 +73,13 @@ contract OrigoRegistry is EIP712, Ownable {
     mapping(address => address) public labelAttester;
 
     event Registered(
-        uint32 indexed id, address indexed creator, uint64 pHash, bytes32 fileCommit, Source source, bytes thumbnail
+        uint32 indexed id, address indexed creator, uint64 pHash,
+        bytes32 fileCommit,
+        Source source,
+        uint8 tileCount,
+        bytes thumbnail
     );
-    event Linked(uint32 indexed childId, uint32 indexed parentId, uint8 distance);
+    event Linked(uint32 indexed childId, uint32 indexed parentId, uint8 parentTileIndex, uint8 distance);
     event Attested(address indexed creator, address indexed attester, string label);
     event AttesterSet(address indexed attester, bool allowed);
 
@@ -89,7 +100,9 @@ contract OrigoRegistry is EIP712, Ownable {
     error TooFar();
     error NotAttester();
     error RadiusTooLarge();
-    error WrongVersionLink();
+    error TooManyTiles();
+    error TilesHashMismatch();
+    error UnknownTile();
 
     constructor() EIP712("Origo", "1") Ownable(msg.sender) {}
 
@@ -106,22 +119,19 @@ contract OrigoRegistry is EIP712, Ownable {
     /// @param r The signed registration.
     /// @param creatorSig EIP-712 signature by the creator over `r`.
     /// @param thumbnail Optional thumbnail bytes (emitted in the event only), at most 4096 bytes.
+    /// @param tiles Optional crop protection tiles (hashes of sub-windows), at most MAX_TILES.
+    /// `r.tilesHash` must equal `keccak256(abi.encodePacked(tiles))`, where each uint64 element is
+    /// encoded as a 32-byte word (left padded). Empty tiles require a zero `tilesHash`.
     /// @return id The new record id (1-based).
-    function register(Registration calldata r, bytes calldata creatorSig, bytes calldata thumbnail)
-        external
-        returns (uint32 id)
-    {
-        _validate(r, thumbnail);
+    function register(
+        Registration calldata r,
+        bytes calldata creatorSig,
+        bytes calldata thumbnail,
+        uint64[] calldata tiles
+    ) external returns (uint32 id) {
+        _validate(r, thumbnail, tiles);
 
-        (address creator, ECDSA.RecoverError err,) =
-            ECDSA.tryRecover(_hashTypedDataV4(_structHash(r)), creatorSig);
-        if (err != ECDSA.RecoverError.NoError || creator == address(0)) revert InvalidSignature();
-
-        if (usedNonce[creator][r.nonce]) revert NonceUsed();
-        bytes32 commitKey = keccak256(abi.encode(creator, r.fileCommit));
-        if (usedCommitKey[commitKey]) revert CommitAlreadyRegistered();
-        usedNonce[creator][r.nonce] = true;
-        usedCommitKey[commitKey] = true;
+        address creator = _consume(r, creatorSig);
 
         records.push(
             Record({
@@ -136,18 +146,33 @@ contract OrigoRegistry is EIP712, Ownable {
                 pHash: r.pHash,
                 parentId: 0,
                 fileCommit: r.fileCommit,
-                registeredBlock: uint64(block.number)
+                registeredBlock: uint64(block.number),
+                tileCount: uint8(tiles.length)
             })
         );
         id = uint32(records.length);
 
-        _index(r.pHash, id);
+        _index(r.pHash, id, 0);
+        _storeTiles(id, tiles);
         creatorRecords[creator].push(id);
 
-        emit Registered(id, creator, r.pHash, r.fileCommit, Source(r.source), thumbnail);
+        emit Registered(id, creator, r.pHash, r.fileCommit, Source(r.source), uint8(tiles.length), thumbnail);
     }
 
-    function _validate(Registration calldata r, bytes calldata thumbnail) private view {
+    /// @dev Recovers the creator and marks the nonce and (creator, fileCommit) as used.
+    function _consume(Registration calldata r, bytes calldata creatorSig) private returns (address creator) {
+        ECDSA.RecoverError err;
+        (creator, err,) = ECDSA.tryRecover(_hashTypedDataV4(_structHash(r)), creatorSig);
+        if (err != ECDSA.RecoverError.NoError || creator == address(0)) revert InvalidSignature();
+
+        if (usedNonce[creator][r.nonce]) revert NonceUsed();
+        bytes32 commitKey = keccak256(abi.encode(creator, r.fileCommit));
+        if (usedCommitKey[commitKey]) revert CommitAlreadyRegistered();
+        usedNonce[creator][r.nonce] = true;
+        usedCommitKey[commitKey] = true;
+    }
+
+    function _validate(Registration calldata r, bytes calldata thumbnail, uint64[] calldata tiles) private view {
         if (block.timestamp > r.deadline) revert Expired();
         if (r.hashVersion != HASH_VERSION) revert WrongHashVersion();
         uint256 pc = _popcount(r.pHash);
@@ -162,11 +187,32 @@ contract OrigoRegistry is EIP712, Ownable {
             if (thumbnail.length > MAX_THUMBNAIL_BYTES) revert ThumbnailTooLarge();
             if (keccak256(thumbnail) != r.thumbnailHash) revert ThumbnailHashMismatch();
         }
+
+        if (tiles.length == 0) {
+            if (r.tilesHash != bytes32(0)) revert TilesHashMismatch();
+        } else {
+            if (tiles.length > MAX_TILES) revert TooManyTiles();
+            if (keccak256(abi.encodePacked(tiles)) != r.tilesHash) revert TilesHashMismatch();
+        }
     }
 
-    function _index(uint64 h, uint32 id) private {
+    /// @dev Stores every tile; indexes only non-degenerate ones (popcount in [8, 56]).
+    function _storeTiles(uint32 id, uint64[] calldata tiles) private {
+        uint256 n = tiles.length;
+        if (n == 0) return;
+        uint64[] storage stored = tileHashes[id];
+        for (uint256 i = 0; i < n; i++) {
+            uint64 t = tiles[i];
+            stored.push(t);
+            uint256 pc = _popcount(t);
+            if (pc >= MIN_POPCOUNT && pc <= MAX_POPCOUNT) _index(t, id, uint8(i + 1));
+        }
+    }
+
+    function _index(uint64 h, uint32 id, uint8 tileIndex) private {
+        uint64 entry = (uint64(id) << 8) | uint64(tileIndex);
         for (uint8 i = 0; i < 4; i++) {
-            buckets[_bucketKey(i, uint16(h >> (48 - 16 * uint256(i))))].push(id);
+            buckets[_bucketKey(i, uint16(h >> (48 - 16 * uint256(i))))].push(entry);
         }
     }
 
@@ -181,6 +227,7 @@ contract OrigoRegistry is EIP712, Ownable {
                 r.source,
                 r.hashVersion,
                 r.thumbnailHash,
+                r.tilesHash,
                 r.nonce,
                 r.deadline
             )
@@ -196,41 +243,43 @@ contract OrigoRegistry is EIP712, Ownable {
         return _bucketKey(segmentIndex, segmentValue);
     }
 
-    /// @notice Number of record ids stored in a bucket.
+    /// @notice Number of entries stored in a bucket.
     function bucketLength(bytes32 key) external view returns (uint256) {
         return buckets[key].length;
     }
 
-    /// @notice Paginated near-duplicate search (multi-index hashing).
+    /// @notice Paginated near-duplicate search (multi-index hashing) over full hashes and tiles.
     /// @param h Query hash.
     /// @param maxDistance Maximum Hamming distance to return.
     /// @param probeRadius Per-segment bit-flip probe radius (0 to 2).
     /// @param cursor 0 to start, otherwise the previous nextCursor.
-    /// @param maxCandidates Maximum bucket entries to examine in this call.
+    /// @param maxCandidates Maximum bucket entries to examine in this call (capped at MAX_PAGE).
     /// @return ids Matching record ids (may contain duplicates across buckets).
-    /// @return distances Hamming distance for each id.
+    /// @return tileIndexes Matching tile index per id (0 = the full hash).
+    /// @return distances Hamming distance for each match.
     /// @return nextCursor 0 when the walk is complete, otherwise the cursor to continue.
     function findMatches(uint64 h, uint8 maxDistance, uint8 probeRadius, uint256 cursor, uint256 maxCandidates)
         external
         view
-        returns (uint32[] memory ids, uint8[] memory distances, uint256 nextCursor)
+        returns (uint32[] memory ids, uint8[] memory tileIndexes, uint8[] memory distances, uint256 nextCursor)
     {
         if (probeRadius > MAX_PROBE_RADIUS) revert RadiusTooLarge();
+        if (maxCandidates > MAX_PAGE) maxCandidates = MAX_PAGE;
 
         Walk memory w;
         w.seg = cursor >> 160;
         w.probe = (cursor >> 96) & type(uint64).max;
         w.offset = (cursor >> 1) & ((uint256(1) << 95) - 1);
-        uint256 cap = 4 * records.length;
-        if (maxCandidates < cap) cap = maxCandidates;
-        w.ids = new uint32[](cap);
-        w.distances = new uint8[](cap);
+        w.ids = new uint32[](maxCandidates);
+        w.tileIndexes = new uint8[](maxCandidates);
+        w.distances = new uint8[](maxCandidates);
 
         uint256 probeCount = probeRadius == 0 ? 1 : (probeRadius == 1 ? 17 : 137);
+        nextCursor = 0;
         while (w.seg < 4) {
             if (!_scanBucket(w, h, maxDistance, maxCandidates)) {
-                _trim(w.ids, w.distances, w.found);
-                return (w.ids, w.distances, _encode(w.seg, w.probe, w.offset));
+                nextCursor = _encode(w.seg, w.probe, w.offset);
+                break;
             }
             w.offset = 0;
             w.probe++;
@@ -239,12 +288,13 @@ contract OrigoRegistry is EIP712, Ownable {
                 w.seg++;
             }
         }
-        _trim(w.ids, w.distances, w.found);
-        return (w.ids, w.distances, 0);
+        _trim(w.ids, w.tileIndexes, w.distances, w.found);
+        return (w.ids, w.tileIndexes, w.distances, nextCursor);
     }
 
     struct Walk {
         uint32[] ids;
+        uint8[] tileIndexes;
         uint8[] distances;
         uint256 found;
         uint256 examined;
@@ -261,7 +311,7 @@ contract OrigoRegistry is EIP712, Ownable {
         returns (bool)
     {
         uint16 v = uint16(h >> (48 - 16 * w.seg));
-        uint32[] storage bucket = buckets[_bucketKey(uint8(w.seg), _probeValue(v, w.probe))];
+        uint64[] storage bucket = buckets[_bucketKey(uint8(w.seg), _probeValue(v, w.probe))];
         uint256 len = bucket.length;
         uint256 offset = w.offset;
         while (offset < len) {
@@ -269,10 +319,13 @@ contract OrigoRegistry is EIP712, Ownable {
                 w.offset = offset;
                 return false;
             }
-            uint32 cid = bucket[offset];
-            uint256 d = _popcount(records[cid - 1].pHash ^ h);
+            uint64 entry = bucket[offset];
+            uint32 cid = uint32(entry >> 8);
+            uint8 ti = uint8(entry);
+            uint256 d = _popcount(_hashAt(cid, ti) ^ h);
             if (d <= maxDistance) {
                 w.ids[w.found] = cid;
+                w.tileIndexes[w.found] = ti;
                 w.distances[w.found] = uint8(d);
                 w.found++;
             }
@@ -283,9 +336,19 @@ contract OrigoRegistry is EIP712, Ownable {
         return true;
     }
 
-    function _trim(uint32[] memory ids, uint8[] memory distances, uint256 n) private pure {
+    /// @dev Hash of record `id` at `tileIndex` (0 = full hash).
+    function _hashAt(uint32 id, uint8 tileIndex) private view returns (uint64) {
+        if (tileIndex == 0) return records[id - 1].pHash;
+        return tileHashes[id][tileIndex - 1];
+    }
+
+    function _trim(uint32[] memory ids, uint8[] memory tileIndexes, uint8[] memory distances, uint256 n)
+        private
+        pure
+    {
         assembly ("memory-safe") {
             mstore(ids, n)
+            mstore(tileIndexes, n)
             mstore(distances, n)
         }
     }
@@ -326,8 +389,9 @@ contract OrigoRegistry is EIP712, Ownable {
     // Derivatives, reads
     // ------------------------------------------------------------------
 
-    /// @notice Links a later record as a derivative of an earlier one if their hashes are close.
-    function linkDerivative(uint32 childId, uint32 parentId) external {
+    /// @notice Links a later record as a derivative of an earlier one if the child hash is close to
+    /// the parent's hash at `parentTileIndex` (0 = the parent's full hash).
+    function linkDerivative(uint32 childId, uint32 parentId, uint8 parentTileIndex) external {
         if (childId == 0 || childId > records.length || parentId == 0 || parentId > records.length) {
             revert UnknownRecord();
         }
@@ -336,16 +400,23 @@ contract OrigoRegistry is EIP712, Ownable {
         Record storage parent = records[parentId - 1];
         if (child.parentId != 0) revert AlreadyLinked();
         if (child.hashVersion != parent.hashVersion) revert WrongHashVersion();
-        uint256 d = _popcount(child.pHash ^ parent.pHash);
+        if (parentTileIndex > parent.tileCount) revert UnknownTile();
+        uint256 d = _popcount(child.pHash ^ _hashAt(parentId, parentTileIndex));
         if (d > LINK_DISTANCE) revert TooFar();
         child.parentId = parentId;
-        emit Linked(childId, parentId, uint8(d));
+        emit Linked(childId, parentId, parentTileIndex, uint8(d));
     }
 
     /// @notice Returns a record by id. Reverts for unknown ids.
     function getRecord(uint32 id) external view returns (Record memory) {
         if (id == 0 || id > records.length) revert UnknownRecord();
         return records[id - 1];
+    }
+
+    /// @notice Returns the crop protection tiles of a record. Reverts for unknown ids.
+    function getTiles(uint32 id) external view returns (uint64[] memory) {
+        if (id == 0 || id > records.length) revert UnknownRecord();
+        return tileHashes[id];
     }
 
     /// @notice Returns several records by id. Reverts if any id is unknown.
