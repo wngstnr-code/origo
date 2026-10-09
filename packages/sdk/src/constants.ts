@@ -16,4 +16,4 @@ export const THUMBNAIL_MAX_EDGE = 96;
 export const THUMBNAIL_MAX_BYTES = 4096;
 
 /** Production domain. It is the passkey relying party id and must never change (G6). */
-export const PRODUCTION_RP_ID = "origo-app.vercel.app";
+export const PRODUCTION_RP_ID = "origo-monad.vercel.app";
