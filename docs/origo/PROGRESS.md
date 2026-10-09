@@ -4,18 +4,19 @@ Read this first every session. Update it at the end of every session. Keep it sh
 
 ## Current status
 
-- **Phase:** Day 1 done except the testnet deploy (waiting for `DEPLOYER_PRIVATE_KEY` in `.env`). Contract (36 tests), SDK hash + index math (36 tests), robustness report done.
+- **Phase:** Day 1 done. Contract deployed and verified on testnet; end-to-end smoke test passed (register f01, WhatsApp-like copy found at distance 0).
 - **Team:** solo (the project owner). **Hosting:** Vercel (static only).
 - **Last updated:** 2026-10-09
 - **Deadline:** Wed Oct 14, 10:59 WIB (Oct 13, 11:59 PM ET). Internal target: Tue Oct 13, 22:00 WIB.
 - **Repo:** https://github.com/wngstnr-code/origo (public). **App:** https://origo-monad.vercel.app
-- **Next action:** owner puts a funded testnet key in `.env`, then deploy to testnet and start Day 2.
+- **Deployer:** `0x7776BE3f1fdd370097Ee8FaD3A642f04eC9f4Ed1` (key only in local `.env`).
+- **Next action:** Day 2 (web app: Mera onboarding, Register, Verify with manual crop).
 
 ## Deployments
 
 | Network | Contract | Address | Tx / block | Date |
 | --- | --- | --- | --- | --- |
-| Monad testnet (10143) | OrigoRegistry | not deployed (dev only, testnet can reset) | | |
+| Monad testnet (10143) | OrigoRegistry | [`0xEe00BC6a082914b5d5455624a3727dEE1B3c78F6`](https://testnet.monadvision.com/address/0xEe00BC6a082914b5d5455624a3727dEE1B3c78F6), verified on Sourcify (exact match). Dev only, testnet can reset | deploy tx `0x52eccb798eebd10c175d61a06ed2b5a211743470df5df29cc2e96348792c4bca`, block 69472733 | 2026-10-09 |
 | Monad mainnet (143) | OrigoRegistry | not deployed (canonical for submission) | | |
 | Web app (Vercel) | project `origo-app` | https://origo-monad.vercel.app (passkey rpId, never change). Auto-deploys from GitHub `main` | scaffold page live | 2026-10-09 |
 
@@ -25,6 +26,8 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | --- | --- | --- |
 | Gas per `register` | about 424k (no thumbnail), about 525k (4 KB thumbnail) | `forge test --gas-report` |
 | Gas per `findMatches` page (256 candidates, 10k-entry bucket) | about 910k | Foundry test |
+| Testnet `register` confirmation time | 1.1 s (send to receipt) | `smoke-testnet.mjs` |
+| Testnet gas charged for `register` | 568,162 = estimate x 1.15 (Monad charges the gas limit) | `smoke-testnet.mjs` |
 | `MATCH_DISTANCE` | 7 (frozen); 8 to 11 = likely same, edited | `ROBUSTNESS.md` |
 | Copies found at <= 7 bits | 100% for compression, resize, WhatsApp x2, brightness, mirror, rotate, borders | `ROBUSTNESS.md` |
 | Closest different photos | 18 bits (0% false positives at <= 11) | `ROBUSTNESS.md` |
@@ -52,6 +55,8 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | Commit uniqueness is per (creator, fileCommit), not global | A global check would let a front-runner block the honest registration |
 | 2026-10-09 | `MATCH_DISTANCE = 7` frozen; 8 to 11 shown as likely same | Robustness: copies <= 4 bits, different photos >= 18 bits |
 | 2026-10-09 | Manual crop in Verify is a must-have | Chat screenshots: 0% found with auto trim, 100% with manual crop |
+| 2026-10-09 | Verify contracts on Sourcify (MonadVision) with `--verifier sourcify --verifier-url https://sourcify-api-monad.blockvision.org/` | No API key needed; owner requires verified contracts |
+| 2026-10-09 | `evm_version = "osaka"` pinned | solc 0.8.30 default; confirmed working on Monad testnet; pinning keeps verification reproducible |
 | 2026-10-09 | Production domain `origo-monad.vercel.app` | `origo-app.vercel.app` was already taken by an unrelated site; owner chose this. It is the passkey rpId (G6) |
 | 2026-10-09 | Foundry deps as pinned git submodules; SDK built with `tsc` | Reproducible builds; tsup DTS fails on TypeScript 6 |
 
@@ -74,3 +79,4 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | Gap audit (27 items in `GAPS.md`), spec updated, testnet RPC and faucet checked, solo + Vercel confirmed |
 | 2026-10-09 | GitHub repo created, Vercel project `origo-app` linked with domain `origo-monad.vercel.app`. Repo scaffolded: git, pnpm workspace, contracts (Foundry + OZ), `@origo/sdk` (constants, networks), `@origo/web` (Vite React, Vercel config), README, MIT license |
 | 2026-10-09 | Day 1: OrigoRegistry + 36 Foundry tests, SDK hash + index math + 36 vitest tests, 27 public-domain fixtures, robustness report. Cross-checked bucket key and cursor encoding between SDK and contract |
+| 2026-10-09 | Testnet deploy + Sourcify verification, end-to-end smoke test on testnet |

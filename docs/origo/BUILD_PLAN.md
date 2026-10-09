@@ -23,7 +23,7 @@ Rule of thumb: the MVP must work end to end on testnet by the end of Day 3. Noth
 - [x] Robustness suite v1, then freeze `MATCH_DISTANCE` and record the false-positive rate (G16)
 - [x] Contract: `register` (EIP-712, random nonces, creator-bound commit, thumbnail), buckets, paginated `findMatches`, `recordsOf`, `getRecords`, `linkDerivative`, attesters (ARCHITECTURE section 7)
 - [x] Foundry tests incl. the front-run test, the "no false negatives within 7" fuzz test, and the 10,000-record bucket gas test (G2, G9)
-- [ ] Deploy to testnet, record the address and gas per `register`
+- [x] Deploy to testnet (verified on Sourcify), record the address and gas per `register`
 
 ### Day 2: Sun Oct 11 (web app, happy path)
 - [ ] Mera onboarding: wallet + creator keys, backup mnemonic, `PRF_UNAVAILABLE` message, injected-wallet fallback (G7, G8)

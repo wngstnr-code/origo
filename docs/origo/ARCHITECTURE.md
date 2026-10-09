@@ -83,6 +83,13 @@ RPC facts that shape the design (Monad docs, checked 2026-10-09):
 
 Record deployed addresses in `packages/sdk/src/chain/addresses.ts` and in `PROGRESS.md`.
 
+**Deploy and verify (always verify, owner requirement):**
+```bash
+set -a; . ./.env; set +a
+cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url <rpc> --broadcast \
+  --verify --verifier sourcify --verifier-url https://sourcify-api-monad.blockvision.org/
+```
+
 ## 5. Perceptual hash spec (must be deterministic, G14)
 
 **Input:** RGBA `{ width, height, data }` at native size.
