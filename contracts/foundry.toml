@@ -3,6 +3,7 @@ src = "src"
 out = "out"
 libs = ["lib"]
 solc_version = "0.8.30"
+evm_version = "osaka"
 optimizer = true
 optimizer_runs = 10000
 remappings = [
