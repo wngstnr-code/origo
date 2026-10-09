@@ -1,6 +1,6 @@
 # Origo: Design Direction
 
-Owner requirement: **the UI must not look AI-generated.** Every screen is checked against the "Never" list and the convergence test at the end before it ships.
+Owner requirement: **the UI must not look AI-generated.** The direction below is a proposal; the owner asked not to lock onto one theme, so the final look is chosen from `FRONTEND_REFERENCES.md`. The "Never" list and the review gate apply whatever direction is chosen. Every screen is checked against the "Never" list and the convergence test at the end before it ships.
 
 ## Direction
 

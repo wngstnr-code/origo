@@ -12,8 +12,11 @@ Real products (not templates or libraries), not big brands, open source, with a 
 | TrueShot (camera photo authenticity) | https://true-shot.vercel.app | https://github.com/YuriTheCoder/TrueShot (14 stars, MIT) | Dark, green accent, "Prove your photos are real." headline, terminal showing verification steps | A live "verification log" panel showing each on-chain step |
 | PicPeak (client galleries for photographers) | https://www.picpeak.app | https://github.com/PicPeak/picpeak (330 stars, MIT, active) | Calm green, gallery card with monospace metadata labels | Photo record cards with monospace metadata (block, id, distance), photographer-friendly tone |
 | BUYIN (consumer web3 finance) | https://www.buyin.money | https://github.com/ethnv/BUYIN (50 stars, MIT, active) | Dark, neon yellow-green, bold monospace type, transaction form in the hero | Showing the product action directly in the hero |
+| Exif Photo Blog | https://photos.sambecker.com | https://github.com/sambecker/exif-photo-blog (1.7k stars, active) | Large photo left, a narrow monospace column of camera metadata right, almost no chrome | Record detail: photo flush with a mono metadata column (block, id, creator, distance) |
+| Atlos (visual investigation platform for OSINT researchers, same audience as Origo) | https://atlos.org | https://github.com/atlosdotorg/atlos (97 stars, active) | Dark, light-weight serif headline, one orange accent, the real product UI as the hero | Credibility for investigators: serious tone, real product screenshot instead of illustrations |
+| Afilmory (photo gallery for photographers) | https://afilmory.art | https://github.com/Afilmory/afilmory (2.6k stars, active) | Warm dark, serif headline, photo card with EXIF overlay on the image | Photo cards with an overlay strip of metadata; warm dark as an alternative mode |
 
-Style options offered to the owner: A editorial trust (LetsSeal + PicPeak), B forensic dark (TrueShot), C crypto bold (BUYIN). Recommendation: A as the base plus the TrueShot-style live verification log.
+The owner asked for references that look good and hand-made, not tied to one theme. Licenses: Exif Photo Blog (no license), Afilmory (custom), Atlos (GPL-3.0) are design references only; do not copy their code.
 
 ## Secondary: libraries and well-known apps
 
