@@ -77,7 +77,7 @@ A fresh passkey wallet cannot pay gas. Registration costs about 200k gas, which 
 
 ### G6. Passkeys are bound to the domain (High, resolved)
 Mera passkeys use `rpId = hostname`. Vercel preview URLs have different hostnames, and changing domains later makes existing accounts unreachable (Mera docs warn about this).
-**Fix:** pick the production domain on Day 0 (for example `origo-app.vercel.app`) and hardcode `RP_ID` to it in production. Preview deployments show a banner "test accounts only". Development uses `localhost` (separate accounts).
+**Fix:** the production domain is fixed as `origo-monad.vercel.app` (decided on Day 0) and hardcode `RP_ID` to it in production. Preview deployments show a banner "test accounts only". Development uses `localhost` (separate accounts).
 
 ### G7. Desktop Chrome `PRF_UNAVAILABLE` (Medium, resolved)
 Only passkeys saved in Google Password Manager return PRF on desktop Chrome, and judges may test on desktop Chrome.

@@ -10,10 +10,10 @@ Rule of thumb: the MVP must work end to end on testnet by the end of Day 3. Noth
 ### Day 0: Fri Oct 9 (setup)
 - [ ] Dashboard (owner): create team (solo), create project "Origo", Track 04, add bounty "Mera: One Passkey, Many Keys" (Envio only if the stretch happens)
 - [x] `git init`, MIT license
-- [ ] First commit, public GitHub repo `origo`
+- [x] First commits, public GitHub repo https://github.com/wngstnr-code/origo
 - [x] pnpm workspace scaffold: `contracts/` (forge init + OpenZeppelin), `packages/sdk`, `apps/web` (Vite React TS); `examples/verify-widget` is created on Day 3
-- [x] Production domain fixed: `origo-app.vercel.app` (rpId, G6)
-- [ ] Create the Vercel project `origo-app` (root directory `apps/web`)
+- [x] Production domain fixed: `origo-monad.vercel.app` (rpId, G6)
+- [x] Vercel project `origo-app` (config in root `vercel.json`), domain https://origo-monad.vercel.app, auto-deploy from `main`
 - [ ] Deployer wallet + demo wallet; testnet MON from https://faucet.monad.xyz (owner solves the Cloudflare check); a small amount of mainnet MON for the Day 3 deploy
 
 ### Day 1: Sat Oct 10 (core logic)

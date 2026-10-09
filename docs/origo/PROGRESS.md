@@ -8,7 +8,8 @@ Read this first every session. Update it at the end of every session. Keep it sh
 - **Team:** solo (the project owner). **Hosting:** Vercel (static only).
 - **Last updated:** 2026-10-09
 - **Deadline:** Wed Oct 14, 10:59 WIB (Oct 13, 11:59 PM ET). Internal target: Tue Oct 13, 22:00 WIB.
-- **Next action:** owner creates the dashboard team/project; first commit; public GitHub repo; Vercel project `origo-app`; faucet MON. Then Day 1.
+- **Repo:** https://github.com/wngstnr-code/origo (public). **App:** https://origo-monad.vercel.app
+- **Next action:** owner creates the dashboard team/project and gets faucet MON. Then Day 1.
 
 ## Deployments
 
@@ -16,7 +17,7 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | --- | --- | --- | --- | --- |
 | Monad testnet (10143) | OrigoRegistry | not deployed (dev only, testnet can reset) | | |
 | Monad mainnet (143) | OrigoRegistry | not deployed (canonical for submission) | | |
-| Web app (Vercel) | | `origo-app.vercel.app` chosen (passkey rpId, never change); project not created yet | | |
+| Web app (Vercel) | project `origo-app` | https://origo-monad.vercel.app (passkey rpId, never change). Auto-deploys from GitHub `main` | scaffold page live | 2026-10-09 |
 
 ## Measured numbers
 
@@ -45,7 +46,7 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | 2026-10-09 | Ranking: proof, then attestation, then earliest block; self-reported fields only tie-break | Self-reported fields can be inflated (G3) |
 | 2026-10-09 | Random unordered nonces + relay links | Lets anyone pay gas for a signed registration (G5, G12) |
 | 2026-10-09 | `HASH_VERSION` in signature, record, and bucket key | Future hash changes do not break old records (G11) |
-| 2026-10-09 | Production domain `origo-app.vercel.app` | Owner decision; it is the passkey rpId (G6) |
+| 2026-10-09 | Production domain `origo-monad.vercel.app` | `origo-app.vercel.app` was already taken by an unrelated site; owner chose this. It is the passkey rpId (G6) |
 | 2026-10-09 | Foundry deps as pinned git submodules; SDK built with `tsc` | Reproducible builds; tsup DTS fails on TypeScript 6 |
 
 ## Open questions
@@ -65,4 +66,4 @@ Read this first every session. Update it at the end of every session. Keep it sh
 | --- | --- |
 | 2026-10-09 | Hackathon research, 5 ideas compared, Origo chosen, build docs and CLAUDE.md written, existing docs translated to English |
 | 2026-10-09 | Gap audit (27 items in `GAPS.md`), spec updated, testnet RPC and faucet checked, solo + Vercel confirmed |
-| 2026-10-09 | Repo scaffolded: git, pnpm workspace, contracts (Foundry + OZ), `@origo/sdk` (constants, networks), `@origo/web` (Vite React, Vercel config), README, MIT license |
+| 2026-10-09 | GitHub repo created, Vercel project `origo-app` linked with domain `origo-monad.vercel.app`. Repo scaffolded: git, pnpm workspace, contracts (Foundry + OZ), `@origo/sdk` (constants, networks), `@origo/web` (Vite React, Vercel config), README, MIT license |
