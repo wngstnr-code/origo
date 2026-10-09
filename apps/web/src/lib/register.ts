@@ -1,6 +1,5 @@
 import {
   HASH_VERSION,
-  RPC_URLS,
   THUMBNAIL_MAX_BYTES,
   THUMBNAIL_MAX_EDGE,
   type RGBAImage,
@@ -14,19 +13,16 @@ import {
   type Chain,
   ContractFunctionRevertedError,
   type Hex,
-  type LocalAccount,
   type Transport,
   type WalletClient,
   bytesToHex,
-  createWalletClient,
   decodeAbiParameters,
   encodeAbiParameters,
   hexToBytes,
-  fallback,
-  http,
   keccak256,
   parseEventLogs,
 } from "viem";
+import type { CreatorSigner } from "./account";
 import { CHAIN } from "./chain";
 import { REGISTRY, publicClient, registryAbi } from "./registry";
 
@@ -113,7 +109,7 @@ export async function sign(opts: {
   source: 0 | 1;
   thumbnail: Uint8Array | null;
   cropProtection: boolean;
-  creator: LocalAccount;
+  creator: CreatorSigner;
   validForSeconds: number;
 }): Promise<Signed> {
   const tiles = opts.cropProtection ? opts.fp.tiles : [];
@@ -187,12 +183,6 @@ export function parseRelayFragment(fragment: string): Signed {
 }
 
 export type Registered = { id: number; hash: Hex; block: bigint; ms: number };
-
-export async function submit(draft: Draft, wallet: LocalAccount): Promise<Registered> {
-  const client = createWalletClient({ account: wallet, chain: CHAIN, transport: fallback(RPC_URLS[CHAIN.id].map((url) => http(url))) });
-  return send(draft, client);
-}
-
 
 /** Sends a priced registration from any wallet client: the passkey wallet or an injected browser wallet. */
 export async function send(draft: Draft, client: WalletClient<Transport, Chain, Account>): Promise<Registered> {

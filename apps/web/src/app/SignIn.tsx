@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { createAccount, hasSavedPasskey, passkeyErrorMessage, signIn, signInWithBackupPhrase } from "../lib/account";
+import {
+  connectBrowserWallet,
+  createAccount,
+  hasSavedPasskey,
+  passkeyErrorMessage,
+  signIn,
+  signInWithBackupPhrase,
+} from "../lib/account";
 
 /** Passkey sign-in, used by Register, My photos and Relay. */
 export function SignIn({ intro }: { intro: string }) {
@@ -41,6 +48,15 @@ export function SignIn({ intro }: { intro: string }) {
             Use a backup phrase
           </button>
         </div>
+      )}
+      {!usePhrase && (
+        <p className="option-note wallet-fallback">
+          No passkey support here?{" "}
+          <button type="button" className="link-button" disabled={busy} onClick={() => run(connectBrowserWallet)}>
+            Use a browser wallet instead
+          </button>{" "}
+          (MetaMask, Rabby). Its address becomes your creator ID and pays the gas.
+        </p>
       )}
       {usePhrase && (
         <form

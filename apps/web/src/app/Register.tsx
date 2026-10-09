@@ -17,8 +17,8 @@ import {
   price,
   registerErrorMessage,
   relayLink,
+  send as sendRegistration,
   sign,
-  submit,
 } from "../lib/register";
 import { onLinkClick } from "../router";
 import { BitGrid } from "../ui/BitGrid";
@@ -167,7 +167,7 @@ export function Register() {
     setSending(true);
     setSendError(null);
     try {
-      setDone(await submit(draft, account.wallet));
+      setDone(await sendRegistration(draft, account.walletClient));
       setRefresh((n) => n + 1);
     } catch (err) {
       setSendError(registerErrorMessage(err));
@@ -215,7 +215,7 @@ export function Register() {
         <ol className="steps">
           <StepBlock
             n={1}
-            title={account ? "Signed in with your passkey" : "Sign in with a passkey"}
+            title={account ? (account.kind === "browser" ? "Connected with your browser wallet" : "Signed in with your passkey") : "Sign in with a passkey"}
             state={s1}
             aside={
               account && (
@@ -227,6 +227,12 @@ export function Register() {
           >
             {!account && (
               <SignIn intro="No seed phrase, no extension. Face ID, Touch ID or your device PIN creates your account keys on this device." />
+            )}
+            {account?.kind === "browser" && (
+              <p className="notice">
+                Browser wallet mode: {shortAddress(account.creator.address)} is both your creator ID and the payer. You sign
+                the registration in your wallet, then confirm the transaction.
+              </p>
             )}
             {account && (
               <dl className="account-facts">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { type EIP1193Provider, createWalletClient, custom, recoverTypedDataAddress } from "viem";
+import { createWalletClient, custom, recoverTypedDataAddress } from "viem";
 import { Shore, Stars } from "../landing/Space";
 import { useAccount } from "../lib/account";
 import { mon, useBalance } from "../lib/balance";
@@ -14,17 +14,10 @@ import {
   price,
   registerErrorMessage,
   send,
-  submit,
 } from "../lib/register";
 import { onLinkClick } from "../router";
 import { BitGrid } from "../ui/BitGrid";
 import { SignIn } from "./SignIn";
-
-declare global {
-  interface Window {
-    ethereum?: EIP1193Provider;
-  }
-}
 
 type Ticket = { signed: Signed; creator: `0x${string}`; thumbnailUrl?: string };
 type Check =
@@ -106,7 +99,7 @@ export function Relay() {
     try {
       if (how === "passkey") {
         if (!account) return;
-        setDone(await submit(draft, account.wallet));
+        setDone(await send(draft, account.walletClient));
       } else {
         const provider = window.ethereum;
         if (!provider) throw new Error("No browser wallet found. Install one, or pay with an Origo passkey.");

@@ -1192,3 +1192,13 @@
     height: 56px;
   }
 }
+
+.wallet-fallback {
+  margin-top: 14px;
+}
+
+.notice:not(.warn-notice) {
+  background: var(--white);
+  border: 1.5px solid var(--paper-2);
+  color: var(--ink-2);
+}

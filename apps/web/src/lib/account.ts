@@ -6,19 +6,47 @@ import {
   isMeraError,
 } from "@category-labs/mera";
 import { toViemAccount } from "@category-labs/mera/viem";
-import { PRODUCTION_RP_ID, backupPhrase, creatorKey, prfFromBackupPhrase, walletKey } from "@origo/sdk";
+import { PRODUCTION_RP_ID, RPC_URLS, backupPhrase, creatorKey, prfFromBackupPhrase, walletKey } from "@origo/sdk";
 import { useSyncExternalStore } from "react";
-import type { LocalAccount } from "viem";
+import {
+  type Account as ViemAccount,
+  type Address,
+  type Chain,
+  type EIP1193Provider,
+  type LocalAccount,
+  type Transport,
+  type WalletClient,
+  createWalletClient,
+  custom,
+  fallback,
+  http,
+} from "viem";
+import { CHAIN } from "./chain";
+
+declare global {
+  interface Window {
+    ethereum?: EIP1193Provider;
+  }
+}
+
+/** Anything that can sign the EIP-712 registration: a Mera session or an injected wallet. */
+export type CreatorSigner = { address: Address; signTypedData: LocalAccount["signTypedData"] };
 
 /**
- * Passkey account (docs/origo/ARCHITECTURE.md section 8). Only the credential id and transports are stored;
- * the PRF output and both private keys live in memory only, inside Mera signing sessions.
+ * The signed-in account (docs/origo/ARCHITECTURE.md section 8).
+ * - passkey: the creator key and the wallet key are two different keys from one passkey. Only the credential id
+ *   is stored; the keys live in memory inside Mera signing sessions.
+ * - browser: fallback for browsers without passkey PRF (GAPS.md G7). One injected wallet address is both the
+ *   creator and the payer, and the UI says so.
  */
 export type Account = {
+  kind: "passkey" | "browser";
   /** Signs registrations; this address goes on the record as the creator. */
-  creator: LocalAccount;
-  /** Pays gas. Standard BIP-44 account, importable into any wallet via the backup phrase. */
-  wallet: LocalAccount;
+  creator: CreatorSigner;
+  /** Pays gas. For a passkey, a standard BIP-44 account importable via the backup phrase. */
+  wallet: { address: Address };
+  /** Sends transactions from `wallet`. */
+  walletClient: WalletClient<Transport, Chain, ViemAccount>;
 };
 
 const STORAGE_KEY = "origo.credential";
@@ -62,7 +90,41 @@ function open(prf: Uint8Array) {
   prf.fill(0);
   signOut();
   ends = [() => creatorSession.end(), () => walletSession.end()];
-  current = { creator: toViemAccount(creatorSession), wallet: toViemAccount(walletSession) };
+  const wallet = toViemAccount(walletSession);
+  current = {
+    kind: "passkey",
+    creator: toViemAccount(creatorSession),
+    wallet,
+    walletClient: createWalletClient({ account: wallet, chain: CHAIN, transport: fallback(RPC_URLS[CHAIN.id].map((url) => http(url))) }),
+  };
+  emit();
+}
+
+export const hasBrowserWallet = () => typeof window !== "undefined" && !!window.ethereum;
+
+/** Connects MetaMask or another injected wallet and switches it to the Origo chain. */
+export async function connectBrowserWallet() {
+  const provider = window.ethereum;
+  if (!provider) throw new Error("No browser wallet found. Install MetaMask or Rabby, or use a passkey on a phone.");
+  const [address] = (await provider.request({ method: "eth_requestAccounts" })) as Address[];
+  if (!address) throw new Error("The wallet did not share an address.");
+  const walletClient = createWalletClient({ account: address, chain: CHAIN, transport: custom(provider) });
+  try {
+    await walletClient.switchChain({ id: CHAIN.id });
+  } catch {
+    await walletClient.addChain({ chain: CHAIN });
+  }
+  signOut();
+  current = {
+    kind: "browser",
+    creator: {
+      address,
+      signTypedData: ((args: Parameters<LocalAccount["signTypedData"]>[0]) =>
+        walletClient.signTypedData({ ...args, account: address } as never)) as LocalAccount["signTypedData"],
+    },
+    wallet: { address },
+    walletClient,
+  };
   emit();
 }
 
@@ -125,7 +187,7 @@ export function passkeyErrorMessage(err: unknown): string {
   if (isMeraError(err)) {
     switch (err.code) {
       case "PRF_UNAVAILABLE":
-        return "This browser or password manager cannot derive keys from a passkey (WebAuthn PRF). Try Chrome, Safari 18 or newer, or a phone with an up-to-date OS.";
+        return "This browser or password manager cannot derive keys from a passkey (WebAuthn PRF). Try Safari 18 or newer, a phone with an up-to-date OS, or use a browser wallet instead.";
       case "PASSKEY_OPERATION_FAILED":
         return "The passkey prompt was closed or failed. Try again.";
       case "CRYPTO_UNAVAILABLE":

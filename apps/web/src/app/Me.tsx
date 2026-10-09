@@ -113,7 +113,7 @@ function SignedIn({ account }: { account: Account }) {
           <a className="button outline small-button" href={TESTNET_FAUCET} target="_blank" rel="noreferrer">
             Get test MON
           </a>
-          <Backup creator={account.creator.address} />
+          {account.kind === "passkey" && <Backup creator={account.creator.address} />}
           <button type="button" className="link-button" onClick={signOut}>
             Sign out
           </button>
